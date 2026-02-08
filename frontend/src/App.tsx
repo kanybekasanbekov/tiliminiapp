@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider } from './contexts/AppContext'
 import NavigationBar from './components/NavigationBar'
 import HomePage from './pages/HomePage'
@@ -17,6 +17,7 @@ export default function App() {
           <Route path="/practice" element={<PracticePage />} />
           <Route path="/cards" element={<CardsListPage />} />
           <Route path="/stats" element={<StatsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <NavigationBar />
       </HashRouter>
