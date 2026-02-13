@@ -1,9 +1,43 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Section, Input, Button, Cell } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
 import type { TranslationResult } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
+
+const SESSION_KEY = 'addcard_draft'
+const SESSION_MAX_AGE = 30 * 60 * 1000 // 30 minutes
+
+interface SavedDraft {
+  word: string
+  editData: TranslationResult
+  editing: boolean
+  timestamp: number
+}
+
+function saveDraft(draft: Omit<SavedDraft, 'timestamp'>) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...draft, timestamp: Date.now() }))
+}
+
+function loadDraft(): SavedDraft | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    if (!raw) return null
+    const draft: SavedDraft = JSON.parse(raw)
+    if (Date.now() - draft.timestamp > SESSION_MAX_AGE) {
+      sessionStorage.removeItem(SESSION_KEY)
+      return null
+    }
+    return draft
+  } catch {
+    sessionStorage.removeItem(SESSION_KEY)
+    return null
+  }
+}
+
+function clearDraft() {
+  sessionStorage.removeItem(SESSION_KEY)
+}
 
 export default function AddCardPage() {
   const [word, setWord] = useState('')
@@ -14,6 +48,27 @@ export default function AddCardPage() {
   const [editing, setEditing] = useState(false)
   const [editData, setEditData] = useState<TranslationResult | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const initialized = useRef(false)
+
+  // Restore draft on mount
+  useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
+
+    const saved = loadDraft()
+    if (saved) {
+      setWord(saved.word)
+      setTranslation(saved.editData)
+      setEditData(saved.editData)
+      setEditing(saved.editing)
+    }
+  }, [])
+
+  // Persist draft when translation state changes
+  useEffect(() => {
+    if (!editData) return
+    saveDraft({ word, editData, editing })
+  }, [word, editData, editing])
 
   const handleTranslate = async () => {
     if (!word.trim()) return
@@ -51,6 +106,7 @@ export default function AddCardPage() {
       setTranslation(null)
       setEditData(null)
       setEditing(false)
+      clearDraft()
       setSuccessMessage(`"${savedWord}" saved!`)
     } catch (e: any) {
       setError(e.message || 'Failed to save')

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
@@ -9,6 +9,42 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import FlashCard from '../components/FlashCard'
 import DifficultyButtons from '../components/DifficultyButtons'
+
+const SESSION_KEY = 'practice_session'
+const SESSION_MAX_AGE = 30 * 60 * 1000 // 30 minutes
+
+interface SavedSession {
+  cards: Flashcard[]
+  currentIndex: number
+  reviewed: number
+  totalDue: number
+  showSide: 'korean' | 'english'
+  timestamp: number
+}
+
+function saveSession(session: Omit<SavedSession, 'timestamp'>) {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, timestamp: Date.now() }))
+}
+
+function loadSession(): SavedSession | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    if (!raw) return null
+    const session: SavedSession = JSON.parse(raw)
+    if (Date.now() - session.timestamp > SESSION_MAX_AGE) {
+      sessionStorage.removeItem(SESSION_KEY)
+      return null
+    }
+    return session
+  } catch {
+    sessionStorage.removeItem(SESSION_KEY)
+    return null
+  }
+}
+
+function clearSession() {
+  sessionStorage.removeItem(SESSION_KEY)
+}
 
 export default function PracticePage() {
   const navigate = useNavigate()
@@ -22,29 +58,56 @@ export default function PracticePage() {
   const [totalDue, setTotalDue] = useState(0)
   const [reviewed, setReviewed] = useState(0)
   const [sessionComplete, setSessionComplete] = useState(false)
+  const initialized = useRef(false)
 
-  const loadCards = useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await api.getDueCards(20)
-      setCards(data.cards)
-      setTotalDue(data.total_due)
-      setDueCount(data.total_due)
-      if (data.cards.length === 0) {
-        setSessionComplete(true)
-      } else {
-        setShowSide(Math.random() > 0.5 ? 'korean' : 'english')
-      }
-    } catch {
-      // ignore
-    } finally {
+  // Init: try restoring from sessionStorage, otherwise fetch from API
+  useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
+
+    const saved = loadSession()
+    if (saved && saved.cards.length > 0) {
+      setCards(saved.cards)
+      setCurrentIndex(saved.currentIndex)
+      setReviewed(saved.reviewed)
+      setTotalDue(saved.totalDue)
+      setShowSide(saved.showSide)
+      setDueCount(saved.totalDue - saved.reviewed)
       setLoading(false)
+      return
     }
+
+    async function fetchCards() {
+      try {
+        const data = await api.getDueCards(20)
+        setCards(data.cards)
+        setTotalDue(data.total_due)
+        setDueCount(data.total_due)
+        if (data.cards.length === 0) {
+          setSessionComplete(true)
+        } else {
+          setShowSide(Math.random() > 0.5 ? 'korean' : 'english')
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCards()
   }, [setDueCount])
 
+  // Persist session state on changes
   useEffect(() => {
-    loadCards()
-  }, [loadCards])
+    if (loading || sessionComplete || cards.length === 0) return
+    saveSession({ cards, currentIndex, reviewed, totalDue, showSide })
+  }, [cards, currentIndex, reviewed, totalDue, showSide, loading, sessionComplete])
+
+  // Clear storage when session completes
+  useEffect(() => {
+    if (sessionComplete) clearSession()
+  }, [sessionComplete])
 
   const currentCard = cards[currentIndex]
 
