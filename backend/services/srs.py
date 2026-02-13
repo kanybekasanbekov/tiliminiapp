@@ -48,17 +48,23 @@ def calculate_srs(
 
     if quality >= 3:  # Correct response
         if current_reps == 0:
-            new_interval = 1
+            if quality == 5:  # Easy — 1 day
+                new_interval = 1
+                next_review = datetime.utcnow() + timedelta(days=1)
+            else:  # Medium — 5 hours
+                new_interval = 0
+                next_review = datetime.utcnow() + timedelta(hours=5)
         elif current_reps == 1:
             new_interval = 6
+            next_review = datetime.utcnow() + timedelta(days=6)
         else:
             new_interval = round(current_interval * new_ease)
+            next_review = datetime.utcnow() + timedelta(days=new_interval)
         new_reps = current_reps + 1
-    else:  # Incorrect - reset
-        new_interval = 1
+    else:  # Hard — reset and review again in 10 minutes
+        new_interval = 0
         new_reps = 0
-
-    next_review = datetime.utcnow() + timedelta(days=new_interval)
+        next_review = datetime.utcnow() + timedelta(minutes=10)
 
     return SRSResult(
         ease_factor=round(new_ease, 4),
