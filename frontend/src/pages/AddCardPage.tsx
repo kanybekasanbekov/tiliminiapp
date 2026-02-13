@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { Section, Input, Button, Cell } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
@@ -7,7 +6,6 @@ import type { TranslationResult } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 export default function AddCardPage() {
-  const navigate = useNavigate()
   const [word, setWord] = useState('')
   const [translation, setTranslation] = useState<TranslationResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -15,6 +13,7 @@ export default function AddCardPage() {
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(false)
   const [editData, setEditData] = useState<TranslationResult | null>(null)
+  const [successMessage, setSuccessMessage] = useState('')
 
   const handleTranslate = async () => {
     if (!word.trim()) return
@@ -34,14 +33,25 @@ export default function AddCardPage() {
     }
   }
 
+  useEffect(() => {
+    if (!successMessage) return
+    const timer = setTimeout(() => setSuccessMessage(''), 3000)
+    return () => clearTimeout(timer)
+  }, [successMessage])
+
   const handleSave = async () => {
     if (!editData) return
     setSaving(true)
     setError('')
     try {
+      const savedWord = editData.korean
       await api.createCard(editData)
       WebApp.HapticFeedback.notificationOccurred('success')
-      navigate('/')
+      setWord('')
+      setTranslation(null)
+      setEditData(null)
+      setEditing(false)
+      setSuccessMessage(`"${savedWord}" saved!`)
     } catch (e: any) {
       setError(e.message || 'Failed to save')
       WebApp.HapticFeedback.notificationOccurred('error')
@@ -58,6 +68,20 @@ export default function AddCardPage() {
           Enter a Korean word to translate
         </p>
       </div>
+
+      {successMessage && (
+        <div style={{
+          margin: '0 16px 12px',
+          padding: '12px 16px',
+          backgroundColor: '#34c75920',
+          borderRadius: '12px',
+          color: '#34c759',
+          fontSize: '14px',
+          fontWeight: 500,
+        }}>
+          {successMessage}
+        </div>
+      )}
 
       <Section>
         <div style={{ padding: '0 16px 12px' }}>
