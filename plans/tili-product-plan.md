@@ -631,9 +631,9 @@ The Mini App cannot scroll on PC/desktop. Root cause: `.page` uses `flex: 1` ins
 Change default LLM provider to OpenAI with `gpt-4.1-mini`. Claude Haiku 4.5 stays as secondary.
 
 **Changes:**
-- `config.py:19`: `LLM_PROVIDER` default → `"openai"`
-- `config.py:26`: `LLM_MODEL` default → `"gpt-4.1-mini"`
-- `llm.py:123`: `OpenAIProvider.__init__` fallback model → `"gpt-4.1-mini"`
+- `config.py`: `LLM_PROVIDER` default → `"openai"`
+- `config.py`: `LLM_MODEL` default → `"gpt-4.1-mini"`
+- `llm.py`: `OpenAIProvider.__init__` fallback model → `"gpt-4.1-mini"`
 - Update `.env.example` to reflect new defaults
 
 **Acceptance criteria:**

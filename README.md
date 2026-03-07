@@ -137,23 +137,22 @@ The frontend will be available at `http://localhost:5173`. The Vite dev server a
    ```
    Copy the HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
 
-3. **Configure Mini App URL** — Send `/myapps` to @BotFather:
-   - Select your bot
-   - Click "Edit Web App URL"
-   - Paste your ngrok HTTPS URL
-
-4. **Set Menu Button** — Send `/setmenubutton` to @BotFather:
-   - Select your bot
-   - Enter a button title (e.g., "Open Tili")
-   - Enter the same ngrok URL
-
-5. **Update CORS** — Add the ngrok URL to your `.env`:
+3. **Update `.env`** — Set the ngrok URL as your frontend URL:
    ```env
    FRONTEND_URL=https://abc123.ngrok-free.app
    ```
    Restart the backend.
 
-6. **Test** — Open your bot in Telegram and tap the menu button to launch the Mini App!
+4. **Start the bot** — In a new terminal:
+   ```bash
+   conda activate tiliminiapp
+   python bot.py
+   ```
+   This automatically sets the menu button and handles `/start`.
+
+5. **Test** — Open your bot in Telegram, send `/start`, and tap "Open Tili" to launch the Mini App!
+
+> **Note:** You no longer need to manually configure the menu button via BotFather — `bot.py` does it automatically.
 
 ## Environment Variables
 
