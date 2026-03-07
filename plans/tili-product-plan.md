@@ -1,8 +1,25 @@
 # Tili: Multi-Language Vocabulary Learning Product Plan
 
-**Date:** 2026-02-20
-**Status:** FINAL - Consensus Approved (Planner + Architect + Critic)
-**Author:** Planner (Prometheus), reviewed by Architect & Critic
+**Date:** 2026-02-20 (Original) | 2026-03-07 (Revised)
+**Status:** REVISED — Updated per founder feedback
+**Author:** Planner (Prometheus), reviewed by Architect & Critic. Revised by founder.
+
+---
+
+## Revision Summary (2026-03-07)
+
+Key changes from original plan:
+1. **Bot removed** — Mini App is the only interface (no tili-core extraction needed)
+2. **Default LLM** → GPT-4.1-mini (Claude Haiku 4.5 as secondary)
+3. **Decks** moved to Phase 1 (originally "Card tags/categories" in Phase 2)
+4. **Reverse practice mode** moved to Phase 1
+5. **Reverse translation** — bidirectional input (e.g., English → Korean)
+6. **Word explanation feature** added to Phase 1 — etymology, structure, roots (on-demand, cached)
+7. **PC scrolling fix** added to Phase 1
+8. **Multi-language support** at end of Phase 1 with Settings page for language pair switching
+9. **Advanced practice (Quiz)** added to Phase 2
+10. **Payments** moved entirely to Phase 2 (app is private/friends-only in Phase 1)
+11. **Streak tracking** moved to Phase 1
 
 ---
 
@@ -92,80 +109,102 @@ Tili aims for the top-right quadrant: high-quality SRS (SM-2) with easy UX (Tele
 
 ### What Already Exists (Current State)
 
-**Tilibot (Telegram Bot):**
-- /add command with AI translation (Korean -> English)
-- /practice with SM-2 spaced repetition (easy/medium/hard)
-- /list, /delete, /stats commands
-- Switchable LLM providers (Anthropic Claude / OpenAI)
-- SQLite with WAL mode, 40 tests
-
-**Tiliminiapp (Mini App):**
+**Tiliminiapp (Mini App) — the sole interface:**
 - Full flashcard CRUD via React + FastAPI
-- Practice mode with flip cards and difficulty rating
+- Practice mode with flip cards and difficulty rating (Easy/Medium/Hard)
+- Random-side practice (shows Korean or English randomly)
 - Telegram initData HMAC-SHA256 authentication
 - Session persistence, haptic feedback, dark/light theme
-- Shares database with bot
+- Card editing, viewing, deleting
+- Paginated card list
+- Statistics with interval distribution chart
+- Dual LLM provider support (Anthropic Claude / OpenAI)
+- SQLite with WAL mode
 
-**What's Missing for MVP Launch:**
+**What's Missing for Phase 1 Launch:**
 - Multi-language support (currently Korean -> English only)
-- User tier system (free/premium)
-- Payment integration (Telegram Stars)
-- Usage tracking and limits
-- Onboarding flow
+- Decks (cards are in a flat list)
+- Explicit reverse practice toggle (currently random-only)
+- Reverse translation direction (can only input Korean)
+- Word explanation feature (etymology, roots, structure)
+- PC scrolling broken on desktop
+- Streak tracking
+- User preferences table
+- Settings page with language pair selector
 
-### Phase 1: MVP Launch Features
+### Phase 1: Core Product Features (Weeks 1-6)
 
 | Feature | Priority | Effort | Description |
 |---------|----------|--------|-------------|
-| Multi-language pair support | P0 | HIGH | Add language_pair to DB schema; parameterize LLM prompts for source/target language; UI language selector |
-| User accounts & tiers table | P0 | MEDIUM | Users table with tier (free/premium), created_at, language preferences |
-| Free tier usage limits | P0 | MEDIUM | 30 cards max, 10 translations/day, 1 language pair |
-| Telegram Stars payment | P0 | HIGH | Stars subscription via Telegram Payments API; webhook for payment confirmation |
-| Onboarding flow | P1 | MEDIUM | Language pair selection on first use; tutorial for adding first card |
-| Daily review reminders | P1 | LOW | Scheduled Telegram message when cards are due |
-| Basic analytics events | P1 | LOW | Track: cards added, reviews completed, retention rate |
+| Fix PC scrolling | P0 | LOW | CSS fix for desktop overflow |
+| Switch LLM to GPT-4.1-mini | P0 | LOW | Cost optimization; Claude Haiku 4.5 as fallback |
+| DB migration: language-agnostic columns | P0 | MEDIUM | Rename `korean`/`english` → `source_text`/`target_text` |
+| Users table | P0 | MEDIUM | Preferences, streaks, active language pair |
+| Decks table + CRUD | P0 | MEDIUM | Organize cards into language-pair-scoped decks |
+| Update backend for new schema | P0 | HIGH | All models, routers, LLM service |
+| Update frontend for new schema | P0 | HIGH | Types, pages, components — dynamic labels |
+| Parameterize LLM prompts | P0 | MEDIUM | Template system for any language pair |
+| Reverse translation direction | P1 | MEDIUM | Input in either language; LLM auto-detects |
+| Reverse practice toggle | P1 | LOW | Source→Target, Target→Source, or Random |
+| Deck UI in Cards page | P1 | MEDIUM | Horizontal chip filter + CRUD modals |
+| Deck integration in Add Card | P1 | LOW | Select deck when adding a card |
+| Word explanation — backend | P1 | MEDIUM | LLM etymology/structure; cached in DB |
+| Word explanation — frontend | P1 | MEDIUM | "Explain" button on Add, Practice, Cards pages |
+| Streak tracking — backend | P1 | LOW | Daily streak logic in users table |
+| Streak tracking — frontend | P1 | LOW | Display on Home + Stats pages |
+| Settings page + language pair selector | P1 | MEDIUM | Gear icon on Home; switch active pair |
+| Filter practice/cards by language pair | P1 | MEDIUM | Practice + cards respect active pair |
+| Translation cache | P2 | LOW | Cache LLM results per language pair |
+| Remove bot references | P2 | LOW | Clean up mini-app-only codebase |
 
-**Target language pairs for MVP:**
-1. Korean -> English (exists)
-2. Korean -> Russian
-3. English -> Russian
-4. English -> Korean
+**Target language pairs for Phase 1:**
+1. Korean → English (exists, to be generalized)
+2. English → Korean
+3. Korean → Russian
+4. English → Russian
 
-### Phase 2: Growth & Retention Features (Month 2-4)
+### Phase 2: Growth, Monetization & Advanced Features (Weeks 7-16)
 
 | Feature | Priority | Description |
 |---------|----------|-------------|
-| Reverse practice mode | P1 | Practice English -> Korean (not just Korean -> English) |
-| Streak tracking & badges | P1 | Daily streak counter, milestone badges (10, 50, 100, 500 words) |
-| Pre-built word lists | P1 | Curated topical lists: K-pop vocabulary, travel phrases, TOPIK levels |
-| Social sharing | P1 | Share streak/progress card to Telegram chats |
-| Korean-Kyrgyz pair | P2 | Add Kyrgyz as target language |
-| English-Kyrgyz pair | P2 | Add Kyrgyz as target language |
-| Audio pronunciation | P2 | TTS for Korean/English words during practice |
-| Card tags/categories | P2 | User-defined tags for organizing vocabulary |
+| User tier system + free limits | P0 | 50 cards, 15 translations/day, 2 language pairs for free |
+| Telegram Stars payment | P0 | Stars subscription via Telegram Payments API |
+| Premium upgrade UI | P0 | Pricing page + banner when limits hit |
+| Advanced practice — Quiz mode | P1 | Multiple-choice with 4 options, score tracking |
+| Quiz progress tracking | P1 | Accuracy %, most-missed words, trends |
+| Pre-built word lists | P1 | Curated installable decks (K-pop, TOPIK, Travel) |
+| Badges/achievements | P2 | Milestone badges (10, 50, 100, 500 words; streaks) |
+| Social sharing cards | P2 | Shareable streak/achievement images for Telegram |
+| Daily review reminders | P2 | Telegram notification when cards are due |
+| Korean-Kyrgyz + English-Kyrgyz | P2 | New language pairs (validate LLM quality first) |
+| Audio pronunciation (TTS) | P3 | Speaker icon on cards; Web Speech API or Google TTS |
+| Referral program | P3 | Invite 3 friends → 1 week free premium |
 
-### Phase 3: Scale & Differentiation (Month 4-8)
+### Phase 3: Scale & Differentiation (Weeks 17-32)
 
 | Feature | Priority | Description |
 |---------|----------|-------------|
 | Group learning | P2 | Shared word lists for classes/study groups |
 | Leaderboards | P2 | Weekly/monthly leaderboards among friends |
-| Contextual sentences | P3 | AI-generated sentences at user's level using their vocabulary |
-| Grammar hints | P3 | Brief grammar notes attached to example sentences |
+| Contextual sentences | P3 | AI-generated sentences at user's level |
+| Grammar hints | P3 | Brief grammar notes attached to examples |
 | Offline mode | P3 | Cache cards locally for practice without internet |
-| Spaced repetition optimization | P3 | FSRS or adaptive algorithm based on user performance data |
+| Spaced repetition optimization | P3 | FSRS or adaptive algorithm based on performance |
 | API for third-party content | P3 | Allow educators to create and distribute word lists |
+| Additional language pairs | Ongoing | Uzbek, Kazakh based on demand |
 
 ---
 
 ## 4. MONETIZATION STRATEGY
 
+> **Note:** All monetization is deferred to Phase 2. Phase 1 is private/friends-only with no usage limits.
+
 ### Tier Structure
 
-**Free Tier (forever free):**
-- 30 flashcards maximum
-- 10 AI translations per day
-- 1 active language pair (can create new cards in 1 pair only, but may review all existing cards regardless of pair)
+**Free Tier (forever free, enforced in Phase 2):**
+- 50 flashcards maximum
+- 15 AI translations per day
+- 2 active language pairs
 - Basic SRS practice
 - Basic stats
 
@@ -173,8 +212,7 @@ Tili aims for the top-right quadrant: high-quality SRS (SM-2) with easy UX (Tele
 - Unlimited flashcards
 - Unlimited AI translations
 - All language pairs
-- Reverse practice mode
-- Streak tracking & badges
+- Advanced quiz mode
 - Pre-built word lists
 - Priority support
 
@@ -185,7 +223,7 @@ Tili aims for the top-right quadrant: high-quality SRS (SM-2) with easy UX (Tele
 
 **Lifetime ($69.99 = ~5,000 Stars):**
 - Everything in Premium, forever
-- Introduced after product-market fit is validated (Phase 2)
+- Introduced after product-market fit is validated (late Phase 2)
 
 ### Pricing Rationale
 
@@ -206,35 +244,29 @@ Tili aims for the top-right quadrant: high-quality SRS (SM-2) with easy UX (Tele
 | Monthly revenue (net) | $57 | $284 | $567 | $2,835 | $5,670 |
 | Annual revenue (net) | $684 | $3,408 | $6,804 | $34,020 | $68,040 |
 
-**Optimistic scenario (5% conversion -- if product-market fit is strong):**
-
-| Metric | 1K Users | 5K Users | 10K Users | 50K Users | 100K Users |
-|--------|----------|----------|-----------|-----------|------------|
-| Free users (95%) | 950 | 4,750 | 9,500 | 47,500 | 95,000 |
-| Premium monthly (3%) | 30 | 150 | 300 | 1,500 | 3,000 |
-| Premium annual (2%) | 20 | 100 | 200 | 1,000 | 2,000 |
-| Monthly revenue (net) | $113 | $567 | $1,134 | $5,670 | $11,340 |
-| Annual revenue (net) | $1,356 | $6,804 | $13,608 | $68,040 | $136,080 |
-
 *Net revenue = after Telegram's ~35% cut on Stars*
 
 ---
 
 ## 5. GROWTH STRATEGY
 
-### Phase 1: First 1,000 Users (Month 1-2)
+### Phase 1: Soft Launch (Weeks 1-6)
+
+Phase 1 is private — founder and close friends only. Focus on building the core product.
+
+### Phase 2: First 1,000 Users (Weeks 7-12)
 
 **Launch channels (all organic, $0 budget):**
 
 1. **K-pop fan communities on Telegram** (highest ROI)
    - Join 20-30 K-pop fan groups in Russian-speaking Telegram (BTS, Blackpink, Stray Kids fan groups)
-   - Share the bot with a message like: "Made a free tool to learn Korean words from your favorite songs"
+   - Share the Mini App with a message like: "Made a free tool to learn Korean words from your favorite songs"
    - Create a "K-pop Vocabulary" pre-built word list as a hook
    - Target: 200-500 users from this channel alone
 
 2. **Korean language learning Telegram groups**
    - Post in Korean study groups for Russian speakers
-   - Offer the bot as a complementary tool to their existing study
+   - Offer the app as a complementary tool to their existing study
    - Target: 100-200 users
 
 3. **Reddit/X communities**
@@ -247,7 +279,7 @@ Tili aims for the top-right quadrant: high-quality SRS (SM-2) with easy UX (Tele
    - "Building in public" posts about the product
    - Target: 50-100 users
 
-### Phase 2: 1,000 to 10,000 Users (Month 2-6)
+### Phase 3: 1,000 to 10,000 Users (Weeks 12-24)
 
 1. **Viral mechanics (built into product)**
    - "Share your streak" cards that display beautifully in Telegram chats
@@ -272,7 +304,7 @@ Tili aims for the top-right quadrant: high-quality SRS (SM-2) with easy UX (Tele
    - Target featured placement in Education category
    - Target: 500-1,000 users/month from discovery
 
-### Phase 3: 10,000+ Users (Month 6-12)
+### Phase 4: 10,000+ Users (Month 6-12)
 
 1. **Paid acquisition (if unit economics justify)**
    - Telegram Ads (targeted to CIS users in language learning groups)
@@ -299,261 +331,215 @@ Tili aims for the top-right quadrant: high-quality SRS (SM-2) with easy UX (Tele
 
 ## 6. TECHNICAL ARCHITECTURE
 
-### Current Architecture Assessment
+### Architecture Overview
 
-**Strengths:**
-- Clean async Python codebase (both bot and backend)
+**Single codebase: tiliminiapp** (Telegram bot removed — Mini App is the sole interface)
+
+```
+tiliminiapp/
+├── backend/                    # Python FastAPI
+│   ├── main.py                # App setup, CORS, lifespan
+│   ├── config.py              # Environment configuration
+│   ├── auth.py                # Telegram initData HMAC-SHA256 auth
+│   ├── db/
+│   │   ├── connection.py      # SQLite init, migrations, schema
+│   │   └── models.py          # All database CRUD operations
+│   ├── services/
+│   │   ├── llm.py             # AI translation + explanation (multi-provider)
+│   │   └── srs.py             # SM-2 spaced repetition algorithm
+│   └── routers/
+│       ├── cards.py           # Card CRUD + translation
+│       ├── practice.py        # Practice session + SRS review
+│       ├── stats.py           # Learning statistics
+│       ├── decks.py           # Deck CRUD
+│       └── users.py           # User profile + preferences
+└── frontend/                   # React 18 + TypeScript + Vite
+    └── src/
+        ├── App.tsx            # Root with hash routing
+        ├── types.ts           # TypeScript interfaces
+        ├── api.ts             # API client with Telegram auth
+        ├── utils/
+        │   └── languages.ts   # Language pair display names
+        ├── contexts/
+        │   └── AppContext.tsx  # Global state (user, theme, language pair)
+        ├── pages/
+        │   ├── HomePage.tsx
+        │   ├── AddCardPage.tsx
+        │   ├── PracticePage.tsx
+        │   ├── CardsListPage.tsx   # Includes deck filter chips
+        │   ├── StatsPage.tsx
+        │   └── SettingsPage.tsx
+        └── components/
+            ├── NavigationBar.tsx
+            ├── FlashCard.tsx
+            ├── DifficultyButtons.tsx
+            └── ...
+```
+
+### Strengths (Current)
+- Clean async Python codebase
 - Factory pattern for LLM providers (easy to add new models)
 - Proper Telegram initData auth (HMAC-SHA256)
 - SQLite with WAL mode (good for single-server)
-- Well-separated concerns: handlers -> services -> db
-- 40 tests on bot side
+- Well-separated concerns: routers → services → db
 
-**Weaknesses/Gaps:**
+### Weaknesses/Gaps (to be fixed in Phase 1)
 - Hardcoded Korean-English language pair throughout (SYSTEM_PROMPT, column names `korean`/`english`)
 - No user management table (user_id exists in flashcards but no users table)
-- No payment/subscription infrastructure
-- No usage tracking or rate limiting
-- Two separate codebases share a DB but duplicate code (models, llm, srs)
-- No tests for mini app backend
-- SQLite won't scale beyond ~50K concurrent users on a single server
+- No decks or card organization
+- No word explanation feature
+- PC scrolling broken on desktop
 - Column names (`korean`, `english`) are language-specific, not generic
 
-### CRITICAL: SRS Algorithm Divergence (Architect Finding)
-
-The bot and mini-app have **divergent SRS implementations** that produce different scheduling on the shared database:
-
-| Scenario | Tilibot (bot/services/srs.py) | Tiliminiapp (backend/services/srs.py) |
-|----------|-------------------------------|---------------------------------------|
-| New card rated "Medium" | 1-day interval | 0-day interval (5 hours) |
-| Card rated "Hard" | Reset to 1-day interval | Reset to 0-day (10-minute review) |
-
-**Decision:** The tiliminiapp version is pedagogically superior (sub-day intervals for initial learning and failed cards is standard SRS behavior) and becomes **canonical in tili-core**. This is a behavior change for bot users -- cards rated "Hard" will now come back in 10 minutes instead of 1 day, which is more aligned with how Anki works.
-
-### CRITICAL: Concurrent SQLite Writer Coordination (Architect Finding)
-
-Both the bot (polling) and mini-app (FastAPI) open independent `aiosqlite.Connection` instances to the same database file. Currently low-risk for flashcard writes, but payment-critical writes (subscription activation after Stars payment) cannot fail silently.
-
-**Mitigations:**
-1. `busy_timeout=5000` PRAGMA (already configured) provides basic retry on lock
-2. Add `BEGIN IMMEDIATE` transaction around payment writes to fail fast
-3. Add explicit retry logic (3 attempts with backoff) around subscription activation
-4. Long-term: consider webhook mode or unified backend process
-
-### Required Changes for Multi-Language Support
-
-**Database Schema Changes:**
+### Database Schema (Phase 1 Target)
 
 ```sql
--- New: Users table
+-- Users table (new)
 CREATE TABLE users (
-    id INTEGER PRIMARY KEY,              -- Telegram user ID
+    id INTEGER PRIMARY KEY,                -- Telegram user ID
     telegram_username TEXT,
     first_name TEXT,
     last_name TEXT,
-    tier TEXT DEFAULT 'free',            -- 'free', 'premium'
-    tier_expires_at TIMESTAMP,
     active_language_pair TEXT DEFAULT 'ko-en',
-    daily_translations_used INTEGER DEFAULT 0,
-    daily_reset_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    current_streak INTEGER DEFAULT 0,
+    longest_streak INTEGER DEFAULT 0,
+    last_practice_date TEXT,               -- YYYY-MM-DD
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- New: Subscriptions table
-CREATE TABLE subscriptions (
+-- Decks table (new)
+CREATE TABLE decks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    telegram_payment_charge_id TEXT,
-    plan TEXT NOT NULL,                   -- 'monthly', 'annual', 'lifetime'
-    stars_amount INTEGER,
-    status TEXT DEFAULT 'active',         -- 'active', 'cancelled', 'expired'
-    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP,
-    cancelled_at TIMESTAMP
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    language_pair TEXT NOT NULL DEFAULT 'ko-en',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, name, language_pair)
 );
+CREATE INDEX idx_decks_user ON decks(user_id);
 
--- Modified: Flashcards table (rename columns to be language-agnostic)
+-- Flashcards table (modified — columns renamed, deck_id added)
 CREATE TABLE flashcards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id),
-    language_pair TEXT NOT NULL DEFAULT 'ko-en',  -- e.g., 'ko-en', 'ko-ru', 'en-ru'
-    source_text TEXT NOT NULL,            -- was 'korean'
-    target_text TEXT NOT NULL,            -- was 'english'
-    example_source TEXT,                  -- was 'example_kr'
-    example_target TEXT,                  -- was 'example_en'
+    deck_id INTEGER REFERENCES decks(id),
+    language_pair TEXT NOT NULL DEFAULT 'ko-en',
+    source_text TEXT NOT NULL,             -- was 'korean'
+    target_text TEXT NOT NULL,             -- was 'english'
+    example_source TEXT,                   -- was 'example_kr'
+    example_target TEXT,                   -- was 'example_en'
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     next_review TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ease_factor REAL DEFAULT 2.5,
     interval_days INTEGER DEFAULT 0,
     repetitions INTEGER DEFAULT 0
 );
+CREATE INDEX idx_flashcards_user_lang ON flashcards(user_id, language_pair, next_review);
+CREATE UNIQUE INDEX idx_user_source ON flashcards(user_id, language_pair, source_text);
 
--- New: Usage tracking
-CREATE TABLE usage_events (
+-- Explanations table (new — cached word explanations)
+CREATE TABLE explanations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    event_type TEXT NOT NULL,             -- 'translation', 'review', 'card_created'
-    language_pair TEXT,
+    flashcard_id INTEGER NOT NULL UNIQUE REFERENCES flashcards(id) ON DELETE CASCADE,
+    explanation TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_flashcards_user_lang ON flashcards(user_id, language_pair, next_review);
-CREATE INDEX idx_usage_user_date ON usage_events(user_id, created_at);
-CREATE INDEX idx_subscriptions_user ON subscriptions(user_id, status);
-```
-
-**LLM Service Changes:**
-
-The current `SYSTEM_PROMPT` is hardcoded for Korean -> English. It needs to be parameterized:
-
-```
-Current (hardcoded):
-  "You are a Korean language expert. Given a Korean word..."
-
-Target (parameterized):
-  translate(word, source_lang="korean", target_lang="russian")
-  -> dynamically builds prompt with correct language names and instructions
-```
-
-The `LLMProvider` abstract class needs a new method signature:
-```python
-async def translate(self, word: str, source_lang: str, target_lang: str) -> TranslationResult
-```
-
-The `TranslationResult` model needs renaming:
-```python
-class TranslationResult(BaseModel):
-    source_text: str      # was: korean
-    target_text: str      # was: english
-    example_source: str   # was: example_kr
-    example_target: str   # was: example_en
-```
-
-**Language Pair Configuration:**
-
-```python
-SUPPORTED_PAIRS = {
-    "ko-en": {"source": "Korean", "target": "English", "source_script": "hangul"},
-    "ko-ru": {"source": "Korean", "target": "Russian", "source_script": "hangul"},
-    "en-ru": {"source": "English", "target": "Russian", "source_script": "latin"},
-    "en-ko": {"source": "English", "target": "Korean", "source_script": "latin"},
-    "ko-ky": {"source": "Korean", "target": "Kyrgyz", "source_script": "hangul"},
-    "en-ky": {"source": "English", "target": "Kyrgyz", "source_script": "latin"},
-}
-```
-
-### Required Changes for Monetization
-
-**Telegram Stars Payment Integration:**
-
-Telegram Bot API supports `createInvoiceLink` and `sendInvoice` for Stars payments. The flow:
-
-1. User taps "Upgrade to Premium" in Mini App
-2. Frontend calls backend `/api/subscribe` endpoint
-3. Backend creates a Telegram Stars invoice via Bot API
-4. User pays in Telegram's native payment UI
-5. Telegram sends `pre_checkout_query` to bot webhook -> bot approves
-6. Telegram sends `successful_payment` update -> bot activates subscription
-7. Backend updates user tier and subscription table
-
-**Middleware for tier enforcement:**
-
-```python
-# FastAPI dependency
-async def check_tier_limits(user_id: int, action: str, db) -> None:
-    user = await get_user(db, user_id)
-    if user["tier"] == "free":
-        # Lazy daily reset (Architect finding: no reset mechanism was specified)
-        if user["daily_reset_at"] < start_of_today_utc():
-            await reset_daily_translations(db, user_id)
-            user["daily_translations_used"] = 0
-        if action == "translate" and user["daily_translations_used"] >= 10:
-            raise HTTPException(402, "Daily translation limit reached. Upgrade to Premium.")
-        if action == "create_card":
-            card_count = await get_card_count(db, user_id)
-            if card_count >= 30:
-                raise HTTPException(402, "Card limit reached. Upgrade to Premium.")
-```
-
-### Code Deduplication
-
-Currently `tilibot` and `tiliminiapp` duplicate: models.py, llm.py, srs.py, config.py, connection.py.
-
-**Recommended approach:** Extract shared code into a `tili-core` package (local Python package):
-
-```
-tili/
-  tili-core/           # Shared library
-    tili_core/
-      db/
-        connection.py
-        models.py
-      services/
-        llm.py
-        srs.py
-      config.py
-    pyproject.toml
-  tilibot/             # Depends on tili-core
-    bot/
-      handlers/
-      main.py
-  tiliminiapp/         # Depends on tili-core
-    backend/
-      routers/
-      auth.py
-      main.py
-    frontend/
-```
-
-Both `tilibot` and `tiliminiapp` install `tili-core` as a local dependency (`pip install -e ../tili-core`).
-
-**Default LLM model:** tili-core config should default to `gpt-4o-mini` (currently tilibot defaults to Claude Sonnet at ~100x the cost, tiliminiapp defaults to Claude Haiku). GPT-4o-mini at $0.15/1M input tokens is sufficient for vocabulary translation.
-
-### Migration Strategy (Architect Review Addition)
-
-SQLite column renames require a CREATE-COPY-DROP-RENAME approach for maximum portability:
-
-```sql
--- 1. Create users table first
-CREATE TABLE users (...);
-
--- 2. Backfill users from existing flashcard data
-INSERT INTO users (id) SELECT DISTINCT user_id FROM flashcards;
-
--- 3. Create new flashcards table with generic column names
-CREATE TABLE flashcards_new (
+-- Translation cache (new)
+CREATE TABLE translation_cache (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    language_pair TEXT NOT NULL DEFAULT 'ko-en',
+    language_pair TEXT NOT NULL,
     source_text TEXT NOT NULL,
     target_text TEXT NOT NULL,
     example_source TEXT,
     example_target TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    next_review TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ease_factor REAL DEFAULT 2.5,
-    interval_days INTEGER DEFAULT 0,
-    repetitions INTEGER DEFAULT 0
+    UNIQUE(language_pair, source_text)
 );
 
--- 4. Copy data with column mapping
-INSERT INTO flashcards_new
-    SELECT id, user_id, 'ko-en', korean, english, example_kr, example_en,
-           created_at, next_review, ease_factor, interval_days, repetitions
-    FROM flashcards;
-
--- 5. Drop old table and rename
-DROP TABLE flashcards;
-ALTER TABLE flashcards_new RENAME TO flashcards;
-
--- 6. Recreate indexes
-CREATE INDEX idx_flashcards_user_lang ON flashcards(user_id, language_pair, next_review);
-CREATE UNIQUE INDEX idx_user_source ON flashcards(user_id, language_pair, source_text);
-
--- 7. Enable foreign keys
-PRAGMA foreign_keys=ON;
+-- Schema versioning (new)
+CREATE TABLE schema_versions (
+    version INTEGER PRIMARY KEY,
+    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
+
+### Additional Schema for Phase 2
+
+```sql
+-- Subscriptions table (Phase 2)
+CREATE TABLE subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    telegram_payment_charge_id TEXT,
+    plan TEXT NOT NULL,                     -- 'monthly', 'annual', 'lifetime'
+    stars_amount INTEGER,
+    status TEXT DEFAULT 'active',           -- 'active', 'cancelled', 'expired'
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP,
+    cancelled_at TIMESTAMP
+);
+CREATE INDEX idx_subscriptions_user ON subscriptions(user_id, status);
+
+-- Users table additions for Phase 2
+-- ALTER TABLE users ADD tier TEXT DEFAULT 'free';
+-- ALTER TABLE users ADD tier_expires_at TIMESTAMP;
+-- ALTER TABLE users ADD daily_translations_used INTEGER DEFAULT 0;
+-- ALTER TABLE users ADD daily_reset_at TIMESTAMP;
+
+-- Quiz results (Phase 2)
+CREATE TABLE quiz_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    flashcard_id INTEGER NOT NULL REFERENCES flashcards(id),
+    correct BOOLEAN NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### LLM Service Architecture
+
+**Default provider:** OpenAI GPT-4.1-mini (cost-optimized)
+**Secondary provider:** Anthropic Claude Haiku 4.5 (fallback)
+
+The LLM service supports two operations:
+1. **Translation:** `translate(word, source_lang, target_lang)` — translates a word/phrase between any supported pair
+2. **Explanation:** `explain_word(word, translation, source_lang, target_lang)` — provides etymology, structure, roots, usage notes
+
+Both use parameterized prompt templates that work for any language pair.
+
+**Translation prompt supports bidirectional input:** The user may input text in either language. The LLM detects the input language and returns `source_text` in the source language and `target_text` in the target language.
+
+**Language Pair Configuration:**
+
+```python
+SUPPORTED_PAIRS = {
+    "ko-en": {"source": "Korean", "target": "English"},
+    "en-ko": {"source": "English", "target": "Korean"},
+    "ko-ru": {"source": "Korean", "target": "Russian"},
+    "en-ru": {"source": "English", "target": "Russian"},
+    # Phase 2:
+    "ko-ky": {"source": "Korean", "target": "Kyrgyz"},
+    "en-ky": {"source": "English", "target": "Kyrgyz"},
+}
+```
+
+### Migration Strategy
+
+SQLite column renames require a CREATE-COPY-DROP-RENAME approach:
+
+1. Create `schema_versions` table (idempotent tracking)
+2. Create `users` table
+3. Backfill: `INSERT OR IGNORE INTO users (id) SELECT DISTINCT user_id FROM flashcards`
+4. Create `decks` table
+5. Create Default decks for each user
+6. Create `flashcards_new` with renamed columns + `deck_id` + `language_pair`
+7. Copy data with column mapping (all existing cards get `language_pair='ko-en'`)
+8. Drop old table, rename new table
+9. Recreate indexes
+10. Create `explanations` and `translation_cache` tables
 
 **All steps must run in a single transaction. Backup the database before running.**
 
@@ -566,28 +552,12 @@ PRAGMA foreign_keys=ON;
 | 50K-100K | Migrate to PostgreSQL | VPS + managed DB ($40-80/mo) | Only if write contention appears |
 | 100K+ | PostgreSQL + read replicas | Cloud ($100-200/mo) | Unlikely in Year 1 |
 
-**Key insight:** SQLite with WAL mode can handle far more than people think. For a flashcard app where writes are infrequent (a few per user per day), SQLite on a single server can realistically handle 50K+ users. Don't over-engineer until you need to.
-
 ### LLM Cost Optimization
 
-1. **Model selection:** Use GPT-4o-mini or Gemini 2.0 Flash (~$0.001 per 1K tokens) instead of Claude Sonnet for translations. Quality is sufficient for vocabulary translation.
+1. **Model selection:** GPT-4.1-mini as default (~$0.10/1M input tokens). Sufficient for vocabulary translation.
 2. **Translation caching:** Cache common word translations in DB. If user B translates the same word as user A in the same language pair, serve from cache.
-3. **Batch translations:** For pre-built word lists, translate once and store.
-
-```sql
-CREATE TABLE translation_cache (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    language_pair TEXT NOT NULL,
-    source_text TEXT NOT NULL,
-    target_text TEXT NOT NULL,
-    example_source TEXT,
-    example_target TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(language_pair, source_text)
-);
-```
-
-This could reduce LLM costs by 30-50% as vocabulary follows a power law (common words are translated by many users).
+3. **Explanation caching:** Each word explained once, cached forever per card.
+4. **Batch translations:** For pre-built word lists (Phase 2), translate once and store.
 
 ---
 
@@ -598,139 +568,623 @@ This could reduce LLM costs by 30-50% as vocabulary follows a power law (common 
 | Cost Item | 100 Users | 1K Users | 10K Users | 100K Users |
 |-----------|-----------|----------|-----------|------------|
 | **Hosting (VPS)** | $10 | $10 | $20 | $80 |
-| **LLM API (translations)** | $1 | $8 | $50 | $300 |
+| **LLM API (translations + explanations)** | $1 | $10 | $60 | $350 |
 | **Domain + SSL** | $1 | $1 | $1 | $1 |
 | **Monitoring (free tier)** | $0 | $0 | $0 | $20 |
 | **Database (if PostgreSQL)** | $0 | $0 | $0 | $40 |
-| **Total monthly** | **$12** | **$19** | **$71** | **$441** |
+| **Total monthly** | **$12** | **$21** | **$81** | **$491** |
 
 **LLM cost assumptions:**
-- Average active user: 3 translations/day, 20 active days/month = 60 translations/month
-- With caching (30% hit rate): ~42 LLM calls/user/month
-- GPT-4o-mini cost: ~$0.00015 per translation (150 input tokens + 200 output tokens)
-- Cost per active user/month: ~$0.006
+- Average active user: 3 translations/day + 1 explanation/week
+- With caching (30% hit rate): ~42 LLM translation calls + 4 explanation calls per user/month
+- GPT-4.1-mini cost: ~$0.00015 per translation, ~$0.001 per explanation
+- Cost per active user/month: ~$0.01
 - Assuming 30% of total users are active in a given month
-
-### Revenue vs Cost Analysis
-
-| Scale | Revenue (conservative) | Revenue (optimistic) | Monthly Cost | Profit (conservative) |
-|-------|----------------------|---------------------|--------------|----------------------|
-| 100 users | $0 (pre-monetization) | $0 | $12 | -$12 |
-| 1K users | $57 | $113 | $19 | $38 |
-| 5K users | $284 | $567 | $40 | $244 |
-| 10K users | $567 | $1,134 | $71 | $496 |
-| 50K users | $2,835 | $5,670 | $250 | $2,585 |
-| 100K users | $5,670 | $11,340 | $441 | $5,229 |
-
-### Break-Even Analysis
-
-**Fixed costs (founder time excluded):** ~$12/month minimum
-**Variable cost per user:** ~$0.002/month (hosting + LLM, amortized)
-**Revenue per paying user (net):** ~$2.27/month
-**Conversion rate assumed (conservative):** 2.5%
-**Revenue per user (blended):** $0.057/month
-
-**Break-even point:** ~210 users (where blended revenue covers hosting)
-
-**To reach $1,000/month net profit (conservative):** ~18,000 users
-**To reach $1,000/month net profit (optimistic, 5%):** ~9,000 users
-**To reach $5,000/month net profit:** ~90,000 users (conservative) / ~45,000 users (optimistic)
-
-The unit economics are extremely favorable because:
-- LLM costs are negligible (~$0.006/active user/month)
-- Hosting scales slowly (SQLite, single server)
-- Telegram handles payments (no Stripe fees on top)
-- No mobile app development cost (Mini App)
-- Distribution cost is near zero (Telegram organic)
 
 ---
 
 ## 8. IMPLEMENTATION PLAN
 
-### Phase 1: MVP Launch (Weeks 1-6)
+### Phase 1: Core Product (Weeks 1-6)
 
-**Week 1-2: Core Infrastructure**
+**Goal:** A fully functional multi-language vocabulary learning app for the founder and close friends. No payments, no usage limits.
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|-------------------|
-| Extract shared `tili-core` package | Create shared library for db, llm, srs, config. Note: tiliminiapp has `update_flashcard()` that bot lacks; tili-core models should be the union of both. SRS: use tiliminiapp version (sub-day intervals) as canonical. Use `datetime.now(datetime.UTC)` instead of deprecated `datetime.utcnow()`. | Both tilibot and tiliminiapp import from tili-core; all 40 existing tests pass (migrate tests first to de-risk extraction) |
-| Database migration: rename columns | `korean` -> `source_text`, `english` -> `target_text` via CREATE-COPY-DROP-RENAME approach (see Migration Strategy below) | Migration script runs idempotently; existing data preserved; backup created before migration |
-| Add `users` table + backfill | Schema per Section 6; backfill with `INSERT INTO users (id) SELECT DISTINCT user_id FROM flashcards` BEFORE adding foreign keys; enable `PRAGMA foreign_keys=ON` | User record exists for all existing flashcard owners; auto-create on first new interaction |
-| Add `subscriptions` table | Schema per Section 6 | Table exists with proper indexes |
-| Add `language_pair` to flashcards | Column with default `ko-en`; existing cards get `ko-en` | All existing cards tagged; new cards require language_pair |
+#### Task Dependency Graph
 
-**Week 2-3: Multi-Language Support**
+```
+1.01 (PC scroll)  ─────────────────────────────────────────────────────►
+1.02 (LLM switch) ──► 1.08 (LLM prompts) ──► 1.09 (reverse translate)
+1.03 (DB rename)  ──► 1.04 (users table) ──► 1.05 (decks table) ──► 1.06 (backend update) ──► 1.07 (frontend update)
+                       1.04 ──► 1.15 (streak backend) ──► 1.16 (streak frontend)
+                       1.04 + 1.08 ──► 1.17 (settings) ──► 1.18 (pair filter)
+                       1.05 + 1.07 ──► 1.11 (deck UI) ──► 1.12 (deck in add card)
+                       1.06 + 1.08 ──► 1.13 (explain backend) ──► 1.14 (explain frontend)
+                       1.07 ──► 1.10 (reverse practice)
+                       1.06 ──► 1.19 (translation cache)
+1.20 (cleanup)    ─────────────────────────────────────────────────────►
+```
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|-------------------|
-| Parameterize LLM prompts | `translate(word, source_lang, target_lang)` | Works for ko-en, ko-ru, en-ru, en-ko with correct prompts |
-| Language pair selector (Mini App) | UI to choose/switch language pair in settings | User can select from supported pairs; persisted to user record |
-| Language pair selector (Bot) | `/language` command + inline keyboard | User can switch pairs; subsequent /add uses selected pair |
-| Update all queries for language_pair | Filter flashcards by active language pair. **Important:** `check_duplicate()` must scope by `language_pair` -- same word can exist in different pairs (e.g., "hello" in en-ko and en-ru). Update `idx_user_korean` index to `idx_user_source` on `(user_id, language_pair, source_text)`. | Practice only shows cards from active pair; stats per pair; duplicates checked per-pair |
+#### TASK 1.01: Fix PC scrolling issue
 
-**Week 3-4: Monetization**
+**Priority:** P0 | **Effort:** Small | **Depends on:** —
+**Files:** `frontend/src/styles/global.css`
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|-------------------|
-| Free tier limits | Enforce 30 card cap, 10 translations/day, 1 pair for free users | Proper HTTP 402 errors with upgrade prompts |
-| Telegram Stars invoice creation | Bot API integration for Stars payments | Invoice generated; test payment flow works |
-| Payment webhook handling | Handle pre_checkout_query + successful_payment | Subscription activated; user tier updated in DB |
-| Premium upgrade UI (Mini App) | Pricing page with subscribe button | Stars payment triggered from Mini App via bot deep link |
-| Subscription status check | Middleware that validates active subscription | Premium features accessible; expired subscriptions downgrade |
+The Mini App cannot scroll on PC/desktop. Root cause: `.page` uses `flex: 1` inside a flex column `#root` with `min-height: 100vh`, but no `overflow-y: auto`. On mobile, Telegram WebView handles scrolling natively, but desktop browsers need explicit overflow.
 
-**Week 4-5: Onboarding & Polish**
+**Changes:**
+- `#root`: change `min-height: 100vh` → `height: 100vh` so flex children can scroll within bounds
+- `.page`: add `overflow-y: auto` so content scrolls within the page container
+- Test all pages on desktop (especially CardsListPage with many cards, AddCardPage with translation results)
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|-------------------|
-| Onboarding flow (Mini App) | First-launch: choose language pair, add first word, do first review | New user completes onboarding in < 2 minutes |
-| Onboarding flow (Bot) | /start redesign with language selection | New user guided to add first card within 3 messages |
-| Daily review reminders | Scheduled message when cards due | User gets 1 notification/day max; respects timezone |
-| Translation cache | Cache table + lookup before LLM call | Duplicate translations served from cache; 0 LLM cost |
+**Acceptance criteria:**
+- All pages scroll on desktop/PC browser
+- Mobile scrolling unchanged
+- Bottom navigation bar stays fixed at bottom
 
-**Week 5-6: Testing & Launch**
+---
 
-| Task | Description | Acceptance Criteria |
-|------|-------------|-------------------|
-| Backend test suite (Mini App) | Tests for all routers, auth, tier limits | 80%+ coverage on backend |
-| Integration tests for payment flow | End-to-end Stars payment test | Payment -> subscription -> feature access verified |
-| Migration script for existing data | Migrate current flashcards to new schema | All existing cards preserved with correct language_pair |
-| Soft launch to beta testers | 20-50 users from Korean learning communities | Collect feedback; fix critical bugs |
-| Public launch | Post in target communities per growth strategy | Bot accessible; Mini App listed |
+#### TASK 1.02: Switch default LLM to GPT-4.1-mini
 
-### Phase 2: Growth & Retention (Weeks 7-16)
+**Priority:** P0 | **Effort:** Small | **Depends on:** —
+**Files:** `backend/config.py`, `backend/services/llm.py`, `.env.example`
 
-| Task | Timeline | Description |
-|------|----------|-------------|
-| Streak tracking & daily goals | Week 7-8 | Track daily review streaks; display in stats |
-| Badges/achievements | Week 8-9 | Milestone badges (10, 50, 100, 500 words learned) |
-| Social sharing cards | Week 9-10 | Generate shareable images of streaks/achievements |
-| Referral program | Week 10-11 | Invite link tracking; 1 week free premium per 3 referrals |
-| Pre-built word lists | Week 11-13 | 5-10 curated lists: K-pop vocab, travel, TOPIK 1, etc. |
-| Reverse practice mode | Week 13-14 | Show target language, recall source language |
-| Korean-Kyrgyz + English-Kyrgyz | Week 14-16 | New language pairs with validated LLM quality |
-| @tili_words Telegram channel | Week 7+ | Daily word posts; growth channel |
+Change default LLM provider to OpenAI with `gpt-4.1-mini`. Claude Haiku 4.5 stays as secondary.
+
+**Changes:**
+- `config.py:19`: `LLM_PROVIDER` default → `"openai"`
+- `config.py:26`: `LLM_MODEL` default → `"gpt-4.1-mini"`
+- `llm.py:123`: `OpenAIProvider.__init__` fallback model → `"gpt-4.1-mini"`
+- Update `.env.example` to reflect new defaults
+
+**Acceptance criteria:**
+- Default provider is OpenAI with `gpt-4.1-mini`
+- `LLM_PROVIDER=anthropic` still works with Claude Haiku 4.5
+- Translation verified with test words
+
+---
+
+#### TASK 1.03: DB migration — rename columns to language-agnostic
+
+**Priority:** P0 | **Effort:** Medium | **Depends on:** —
+**Files:** `backend/db/connection.py`, `backend/db/models.py`
+
+Rename hardcoded Korean/English columns to generic names via SQLite CREATE-COPY-DROP-RENAME approach. Foundation for all multi-language work.
+
+**Column renames in `flashcards`:**
+- `korean` → `source_text`
+- `english` → `target_text`
+- `example_kr` → `example_source`
+- `example_en` → `example_target`
+- Add: `language_pair TEXT NOT NULL DEFAULT 'ko-en'`
+
+**Migration steps (single transaction):**
+1. Create `schema_versions` table to track migrations
+2. Check if migration already applied (idempotent)
+3. Create `flashcards_new` with new columns
+4. Copy data with column mapping; all existing cards get `language_pair = 'ko-en'`
+5. `DROP TABLE flashcards` → `ALTER TABLE flashcards_new RENAME TO flashcards`
+6. Recreate indexes: `idx_user_review(user_id, next_review)`, `idx_user_source(user_id, language_pair, source_text)`
+
+**Acceptance criteria:**
+- Migration runs idempotently (safe to run multiple times)
+- Existing data preserved with `language_pair = 'ko-en'`
+- Indexes recreated
+- `_SCHEMA` in `connection.py` updated for fresh installs
+
+---
+
+#### TASK 1.04: DB — add users table
+
+**Priority:** P0 | **Effort:** Medium | **Depends on:** 1.03
+**Files:** `backend/db/connection.py`, `backend/db/models.py`
+
+Create `users` table for preferences, streaks, and language pair selection. Backfill from existing flashcard data.
+
+**Schema:** See Section 6 (Technical Architecture).
+
+**Model functions to add:**
+- `get_or_create_user(conn, user_id, first_name, username, last_name)` — upsert
+- `get_user(conn, user_id)` → dict | None
+- `update_user_preferences(conn, user_id, **kwargs)`
+
+**Backfill:** `INSERT OR IGNORE INTO users (id) SELECT DISTINCT user_id FROM flashcards`
+
+**Integration:** Update all routers to call `get_or_create_user` on every authenticated request.
+
+**Acceptance criteria:**
+- Users table created on startup
+- Existing users backfilled
+- New users auto-created on first API call
+- Preferences persist across sessions
+
+---
+
+#### TASK 1.05: DB — add decks table
+
+**Priority:** P0 | **Effort:** Medium | **Depends on:** 1.03, 1.04
+**Files:** `backend/db/connection.py`, `backend/db/models.py`
+
+Create `decks` table. Each deck is tied to one language pair. Every user gets a "Default" deck auto-created. Add `deck_id` to flashcards.
+
+**Schema:** See Section 6 (Technical Architecture).
+
+**Migration:**
+1. Create decks table
+2. For each distinct `user_id` in flashcards, create a "Default" deck with `language_pair='ko-en'`
+3. Set all existing flashcards' `deck_id` to their user's Default deck
+
+**Model functions:**
+- `create_deck(conn, user_id, name, description, language_pair)` → deck_id
+- `get_user_decks(conn, user_id, language_pair=None)` → list of decks with card counts
+- `get_deck(conn, deck_id, user_id)` → dict | None
+- `update_deck(conn, deck_id, user_id, name, description)` → dict | None
+- `delete_deck(conn, deck_id, user_id)` — moves cards to Default; prevent deleting Default
+- `move_card_to_deck(conn, card_id, deck_id, user_id)`
+- `get_or_create_default_deck(conn, user_id, language_pair)`
+
+**Acceptance criteria:**
+- Decks table created, Default deck auto-created per user
+- Existing cards linked to Default deck
+- CRUD operations work
+- Cannot delete Default deck
+
+---
+
+#### TASK 1.06: Update backend models/routers for new schema
+
+**Priority:** P0 | **Effort:** Large | **Depends on:** 1.03, 1.04, 1.05
+**Files:** `backend/db/models.py`, `backend/routers/cards.py`, `backend/routers/practice.py`, `backend/routers/stats.py`, `backend/services/llm.py`
+
+Update all Python code from old column names to new ones. Update Pydantic models and request/response schemas.
+
+**`models.py` changes:**
+- `add_flashcard()`: params `korean` → `source_text`, `english` → `target_text`, etc. Add `language_pair`, `deck_id`.
+- `check_duplicate()`: check by `(user_id, language_pair, source_text)`
+- `get_due_flashcards()`: add optional `language_pair` and `deck_id` filters
+- `get_all_flashcards()`: add optional `language_pair` and `deck_id` filters
+- `update_flashcard()`: update field names
+- All SQL queries: reference new column names
+
+**`llm.py` changes:**
+- `TranslationResult` fields: `korean` → `source_text`, `english` → `target_text`, etc.
+
+**Router changes:**
+- `CardCreateRequest`: fields renamed. Add optional `deck_id`, `language_pair`.
+- `CardUpdateRequest`: fields renamed.
+- `translate_word()`: accept `language_pair` param.
+
+**Acceptance criteria:**
+- All API endpoints work with new field names
+- Zero references to `korean`/`english`/`example_kr`/`example_en` column names in Python code
+
+---
+
+#### TASK 1.07: Update frontend types/pages for new field names
+
+**Priority:** P0 | **Effort:** Large | **Depends on:** 1.06
+**Files:** `frontend/src/types.ts`, `frontend/src/api.ts`, all pages, all components
+
+Update all TypeScript interfaces and component references. Make labels dynamic.
+
+**`types.ts`:**
+- `Flashcard`: `korean` → `source_text`, etc. Add `language_pair`, `deck_id`.
+- `TranslationResult`: same renames.
+- Add `Deck` interface.
+
+**`FlashCard.tsx`:**
+- `showSide` type: `'korean' | 'english'` → `'source' | 'target'`
+- Labels derived from `card.language_pair` using `getLanguageNames()` helper.
+
+**`PracticePage.tsx`:**
+- `showSide` state and `SavedSession`: `'korean' | 'english'` → `'source' | 'target'`
+
+**All pages:** Dynamic labels, updated field references.
+
+**New utility:** `frontend/src/utils/languages.ts` — language pair code → display names.
+
+**Acceptance criteria:**
+- All frontend code uses new field names
+- Labels are dynamic (not hardcoded "Korean"/"English")
+- Zero TypeScript errors
+
+---
+
+#### TASK 1.08: Parameterize LLM prompts for multi-language
+
+**Priority:** P0 | **Effort:** Medium | **Depends on:** 1.02
+**Files:** `backend/services/llm.py`
+
+Replace hardcoded Korean-English system prompt with a template system.
+
+**Changes:**
+- Add `SUPPORTED_PAIRS` config dict
+- Add `build_translation_prompt(source_lang, target_lang)` function
+- New `LLMProvider` method: `translate(word, source_lang, target_lang)` replaces `translate_korean(word)`
+- Handle language-specific instructions (Korean: 존댓말, Russian: formal)
+
+**Acceptance criteria:**
+- Translation works for all 4 supported pairs
+- JSON output consistent across pairs
+
+---
+
+#### TASK 1.09: Reverse translation direction (bidirectional input)
+
+**Priority:** P1 | **Effort:** Medium | **Depends on:** 1.08
+**Files:** `backend/routers/cards.py`, `backend/services/llm.py`, `frontend/src/pages/AddCardPage.tsx`
+
+Allow input in either language. LLM auto-detects and always returns `source_text` in source language.
+
+**Backend:** LLM prompt: "The user may input text in either language. Detect and provide translation. Always return `source_text` in {source_lang}."
+
+**Frontend:** Dynamic placeholder: "Enter a word in Korean or English" (per active pair).
+
+**Acceptance criteria:**
+- Input "hello" with `ko-en` → source_text="안녕하세요", target_text="hello"
+- Input "안녕하세요" with `ko-en` → same result
+
+---
+
+#### TASK 1.10: Reverse practice mode — explicit toggle
+
+**Priority:** P1 | **Effort:** Small | **Depends on:** 1.07
+**Files:** `frontend/src/pages/PracticePage.tsx`
+
+Add practice direction selector: Source→Target (default), Target→Source, Random.
+
+**Changes:**
+- Mode selector UI at top of practice session
+- Store choice in session storage
+- Set `showSide` per card based on mode
+- Dynamic prompt: "What does this mean in {other_language}?"
+
+**Acceptance criteria:**
+- User can choose practice direction
+- Choice persists during session
+
+---
+
+#### TASK 1.11: Deck UI — filter/section inside Cards page
+
+**Priority:** P1 | **Effort:** Medium | **Depends on:** 1.05, 1.07
+**Files:** `frontend/src/pages/CardsListPage.tsx`, `frontend/src/api.ts`, `backend/routers/decks.py` (new), `backend/main.py`
+
+Add deck management inside Cards page with horizontal chip filter.
+
+**Backend — new `routers/decks.py`:**
+- `GET /api/decks` — list decks with card counts
+- `POST /api/decks` — create deck
+- `PUT /api/decks/{deck_id}` — update
+- `DELETE /api/decks/{deck_id}` — delete (move cards to Default)
+
+**Frontend — `CardsListPage.tsx`:**
+- Horizontal scrollable chip bar: "All", "Default", user decks, "+ New Deck"
+- Filter cards by deck selection
+- Create/edit/delete modals
+
+**Acceptance criteria:**
+- Deck chips at top of Cards page
+- Filter cards by deck
+- CRUD via UI
+- Default deck cannot be deleted
+
+---
+
+#### TASK 1.12: Deck integration in Add Card flow
+
+**Priority:** P1 | **Effort:** Small | **Depends on:** 1.11
+**Files:** `frontend/src/pages/AddCardPage.tsx`, `backend/routers/cards.py`
+
+Deck selector dropdown in Add Card page. Default to Default deck.
+
+**Acceptance criteria:**
+- Cards assignable to specific deck during creation
+- Default deck used when none selected
+
+---
+
+#### TASK 1.13: Word explanation feature — backend
+
+**Priority:** P1 | **Effort:** Medium | **Depends on:** 1.06, 1.08
+**Files:** `backend/services/llm.py`, `backend/routers/cards.py`, `backend/db/models.py`, `backend/db/connection.py`
+
+LLM-powered word explanation: etymology, structure, roots, usage, extra examples. On-demand, cached.
+
+**New table:** `explanations` (see Section 6 schema)
+
+**New LLM method:** `explain_word(word, translation, source_lang, target_lang)` → markdown text
+
+**Explanation prompt includes:**
+1. Word structure/etymology/roots
+2. How the word is formed (prefixes, suffixes, particles)
+3. Common usage patterns
+4. 2-3 additional example sentences with translations
+5. Related words
+
+Response in the target language. Markdown formatted.
+
+**New endpoints:**
+- `GET /api/cards/{card_id}/explanation` — cached or 404
+- `POST /api/cards/{card_id}/explanation` — generate, cache, return
+
+**Acceptance criteria:**
+- First request generates via LLM, caches
+- Subsequent requests return cached (no LLM call)
+- Explanation includes structure, roots, examples
+
+---
+
+#### TASK 1.14: Word explanation feature — frontend
+
+**Priority:** P1 | **Effort:** Medium | **Depends on:** 1.13
+**Files:** `frontend/src/pages/AddCardPage.tsx`, `frontend/src/pages/PracticePage.tsx`, `frontend/src/pages/CardsListPage.tsx`, `frontend/src/api.ts`
+
+"Explain" button on card views (after save only). Shows loading, then formatted explanation.
+
+**Where it appears:**
+- **AddCardPage:** after card is saved (uses saved card's ID)
+- **PracticePage:** on revealed (answer) side
+- **CardsListPage:** in expanded details and View Card overlay
+
+**Acceptance criteria:**
+- "Explain" button on Add (after save), Practice (after reveal), Cards pages
+- First press: loading → explanation
+- Subsequent presses: instant (cached)
+
+---
+
+#### TASK 1.15: Streak tracking — backend
+
+**Priority:** P1 | **Effort:** Small | **Depends on:** 1.04
+**Files:** `backend/db/models.py`, `backend/routers/practice.py`, `backend/routers/stats.py`
+
+Track daily practice streaks in users table.
+
+**Logic (after each successful review):**
+- If `last_practice_date` is today → no change
+- If yesterday → increment `current_streak`
+- If older or NULL → reset to 1
+- Update `longest_streak = max(longest_streak, current_streak)`
+- Set `last_practice_date = today`
+
+**Stats endpoint:** include `current_streak`, `longest_streak`.
+
+**Acceptance criteria:**
+- Streak increments on daily practice
+- Resets after missing a day
+- Longest streak tracked separately
+
+---
+
+#### TASK 1.16: Streak tracking — frontend
+
+**Priority:** P1 | **Effort:** Small | **Depends on:** 1.15
+**Files:** `frontend/src/pages/HomePage.tsx`, `frontend/src/pages/StatsPage.tsx`, `frontend/src/types.ts`
+
+Display streaks on Home and Stats pages.
+
+**HomePage:** Streak counter "🔥 5 day streak" below welcome message.
+**StatsPage:** Current and longest streak section.
+
+**Acceptance criteria:**
+- Streak displayed on Home and Stats
+- Zero streak handled gracefully
+
+---
+
+#### TASK 1.17: Settings page + language pair selector
+
+**Priority:** P1 | **Effort:** Medium | **Depends on:** 1.04, 1.08
+**Files:** `frontend/src/pages/SettingsPage.tsx` (new), `frontend/src/pages/HomePage.tsx`, `frontend/src/contexts/AppContext.tsx`, `frontend/src/App.tsx`, `backend/routers/users.py` (new), `backend/main.py`
+
+Settings page via gear icon on Home page. Switch active language pair.
+
+**Backend — new `routers/users.py`:**
+- `GET /api/user/profile` — user with active_language_pair
+- `PUT /api/user/language-pair` — update active pair
+
+**Frontend:**
+- SettingsPage with language pair radio list
+- HomePage: gear icon → `/settings`, language pair badge
+- AppContext: `activeLanguagePair` + `setActiveLanguagePair`, fetched on init
+
+**Supported pairs:** `ko-en`, `en-ko`, `ko-ru`, `en-ru`
+
+**Acceptance criteria:**
+- Settings accessible from Home
+- Language pair switching persists (DB)
+- All pages access active pair via context
+
+---
+
+#### TASK 1.18: Filter practice and cards by language pair
+
+**Priority:** P1 | **Effort:** Medium | **Depends on:** 1.17
+**Files:** `backend/db/models.py`, `backend/routers/cards.py`, `backend/routers/practice.py`, `frontend/src/pages/PracticePage.tsx`, `frontend/src/pages/CardsListPage.tsx`
+
+Practice and cards list respect active language pair.
+
+**Backend:** Add `language_pair` filter to `get_due_flashcards()`, `get_all_flashcards()`, `get_user_stats()`.
+
+**Frontend:** PracticePage passes active pair. CardsListPage defaults to active pair with "All" option.
+
+**Acceptance criteria:**
+- Practice only shows active pair cards
+- Cards list filterable by pair
+- Duplicate check scoped to `(user_id, language_pair, source_text)`
+
+---
+
+#### TASK 1.19: Translation cache table
+
+**Priority:** P2 | **Effort:** Small | **Depends on:** 1.06
+**Files:** `backend/db/connection.py`, `backend/db/models.py`, `backend/routers/cards.py`
+
+Cache LLM translation results per language pair.
+
+**Logic:** Check cache before LLM call. On hit, return cached. On miss, call LLM, store, return.
+
+**Acceptance criteria:**
+- Repeated translations served from cache
+- Cache per language pair
+
+---
+
+#### TASK 1.20: Remove bot references, clean up
+
+**Priority:** P2 | **Effort:** Small | **Depends on:** —
+**Files:** Various
+
+Remove references to Telegram bot codebase. Keep `TELEGRAM_BOT_TOKEN` (needed for initData auth). Update docs.
+
+**Acceptance criteria:**
+- No bot-specific references remain
+- Auth still works
+- Clean mini-app-only codebase
+
+---
+
+### Phase 2: Growth, Monetization & Advanced Features (Weeks 7-16)
+
+**Goal:** Add payments, advanced practice, social features, and growth mechanics.
+
+#### TASK 2.01: User tier system + free tier limits
+
+**Priority:** P0 | **Effort:** Medium
+**Files:** `backend/db/models.py`, `backend/db/connection.py`, `backend/routers/cards.py`, `backend/routers/practice.py`
+
+Add `tier` to users table. Enforce: 50 cards max, 15 translations/day, 2 language pairs for free tier.
+
+**Users table additions:** `tier`, `tier_expires_at`, `daily_translations_used`, `daily_reset_at`
+
+**Middleware:** `check_tier_limits()` FastAPI dependency. HTTP 402 with upgrade prompt.
+
+---
+
+#### TASK 2.02: Telegram Stars payment integration
+
+**Priority:** P0 | **Effort:** Large
+**Files:** `backend/routers/subscribe.py` (new), `backend/db/models.py`, `backend/main.py`
+
+Subscriptions table. Stars invoice creation via Bot API. Payment webhook. Subscription activation.
+
+**Flow:** Mini App → `POST /api/subscribe` → Bot API invoice → user pays → webhook → subscription activated.
+
+---
+
+#### TASK 2.03: Premium upgrade UI
+
+**Priority:** P0 | **Effort:** Medium
+**Files:** `frontend/src/pages/SettingsPage.tsx`, `frontend/src/components/PremiumBanner.tsx` (new)
+
+Upgrade prompt in Settings + banner when limits hit. Pricing, benefits, Stars payment trigger.
+
+---
+
+#### TASK 2.04: Advanced practice — Quiz mode
+
+**Priority:** P1 | **Effort:** Large
+**Files:** `frontend/src/pages/QuizPage.tsx` (new), `backend/routers/practice.py`, `backend/db/models.py`, `frontend/src/App.tsx`
+
+Multiple-choice quiz: show source word, 4 target options (1 correct + 3 distractors). Score tracking.
+
+**Backend:**
+- `GET /api/practice/quiz?limit=10` — questions with shuffled options
+- `POST /api/practice/quiz/answer` — submit answer, track result
+
+**Frontend:** QuizPage with multiple-choice UI, score tracking, session summary.
+
+---
+
+#### TASK 2.05: Quiz progress tracking
+
+**Priority:** P1 | **Effort:** Medium
+**Files:** `backend/db/connection.py`, `backend/db/models.py`, `backend/routers/stats.py`, `frontend/src/pages/StatsPage.tsx`
+
+`quiz_results` table. Show accuracy %, most-missed words, weekly trends.
+
+---
+
+#### TASK 2.06: Pre-built word lists (curated decks)
+
+**Priority:** P1 | **Effort:** Medium
+**Files:** `backend/routers/decks.py`, `backend/db/models.py`, data files
+
+Installable curated decks: "K-pop Vocabulary", "Travel Phrases", "TOPIK Level 1".
+
+- `GET /api/decks/templates` — available templates
+- `POST /api/decks/install/{template_id}` — copy into user's account
+
+---
+
+#### TASK 2.07: Badges and achievements
+
+**Priority:** P2 | **Effort:** Medium
+
+Milestones: 10/50/100/500 words, 7/30/100 day streaks, first quiz 100%.
+
+---
+
+#### TASK 2.08: Social sharing cards
+
+**Priority:** P2 | **Effort:** Medium
+
+Shareable image/card: streak, word count, achievements. Share to Telegram chats.
+
+---
+
+#### TASK 2.09: Daily review reminders
+
+**Priority:** P2 | **Effort:** Medium
+
+Telegram message when cards are due. Max 1/day.
+
+---
+
+#### TASK 2.10: Kyrgyz language pairs
+
+**Priority:** P2 | **Effort:** Small
+
+Add `ko-ky`, `en-ky`. Validate LLM quality with native speakers first.
+
+---
+
+#### TASK 2.11: Audio pronunciation (TTS)
+
+**Priority:** P3 | **Effort:** Medium
+
+Speaker icon on flashcards. Browser Web Speech API or Google Cloud TTS.
+
+---
+
+#### TASK 2.12: Referral program
+
+**Priority:** P3 | **Effort:** Medium
+
+Referral links, tracking, 1 week free premium per 3 referrals.
+
+---
 
 ### Phase 3: Scale & Differentiation (Weeks 17-32)
 
 | Task | Timeline | Description |
 |------|----------|-------------|
-| Audio pronunciation (TTS) | Week 17-20 | Google Cloud TTS or browser Web Speech API |
-| Group learning / shared lists | Week 20-24 | Teachers create lists; students subscribe |
-| Leaderboards | Week 22-24 | Weekly/monthly ranking among contacts |
-| Advanced analytics dashboard | Week 24-28 | Retention curves, forgetting curves, optimal review times |
-| PostgreSQL migration (if needed) | Week 28-32 | Only if SQLite shows contention at scale |
+| Group learning / shared lists | Week 17-20 | Teachers create lists; students subscribe |
+| Leaderboards | Week 20-22 | Weekly/monthly ranking among contacts |
+| Advanced analytics dashboard | Week 22-26 | Retention curves, forgetting curves, optimal review times |
+| PostgreSQL migration (if needed) | Week 26-30 | Only if SQLite shows contention at scale |
 | Additional language pairs | Ongoing | Uzbek, Kazakh based on demand |
 
 ### Key Milestones
 
 | Milestone | Target Date | Success Metric |
 |-----------|-------------|----------------|
-| MVP feature-complete | Week 4 | All P0 features working |
-| Beta launch (50 users) | Week 5 | 50 active testers |
-| Public launch | Week 6 | Bot + Mini App publicly accessible |
-| 500 users | Week 10 | Organic growth from launch channels |
-| 1,000 users | Week 14 | Viral + community growth |
-| First paying customer | Week 7 | Stars payment processed |
+| Phase 1 feature-complete | Week 5 | All P0 + P1 features working |
+| Soft launch (friends & beta) | Week 6 | 10-20 active testers, feedback collected |
+| Public launch | Week 8 | Mini App publicly accessible |
+| 500 users | Week 12 | Organic growth from launch channels |
+| 1,000 users | Week 16 | Viral + community growth |
+| First paying customer | Week 9 | Stars payment processed |
 | 50 paying users | Week 16 | $100+/month net revenue |
 | $1,000/month MRR | Month 6-8 | Sustainable product |
 
@@ -743,37 +1197,36 @@ The unit economics are extremely favorable because:
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | LLM quality for Kyrgyz translations | HIGH | MEDIUM | Validate with native speakers before launch; fall back to English as intermediary |
-| Telegram API changes / Stars policy changes | LOW | HIGH | Abstract payment layer; keep alternative monetization path (direct payment) |
-| Database migration breaks existing data | MEDIUM | HIGH | Write idempotent migration; backup before running; test on copy of production DB |
-| Bot/Mini App state desync (shared DB) | MEDIUM | MEDIUM | tili-core shared library ensures consistent DB access patterns |
-| SQLite write contention at scale | LOW | MEDIUM | WAL mode handles most cases; monitor and migrate to PostgreSQL only if needed |
-| Payment webhook latency (polling mode) | MEDIUM | HIGH | Bot uses `run_polling()` -- Telegram gives only 10s to answer `pre_checkout_query`. Polling interval may cause timeout. **Mitigation:** Switch to webhook mode before payment launch, or verify polling picks up payment updates fast enough. `allowed_updates=ALL_TYPES` is already set. |
-| SRS algorithm divergence (existing bug) | CONFIRMED | MEDIUM | Bot and mini-app produce different scheduling for same card. Fixed by tili-core extraction using tiliminiapp version as canonical. |
+| Telegram API changes / Stars policy changes | LOW | HIGH | Abstract payment layer; keep alternative monetization path |
+| Database migration breaks existing data | MEDIUM | HIGH | Idempotent migration with schema_versions; backup before running; test on copy |
+| SQLite write contention at scale | LOW | MEDIUM | WAL mode handles most cases; migrate to PostgreSQL only if needed |
+| GPT-4.1-mini translation quality | LOW | MEDIUM | Fallback to Claude Haiku 4.5; prompt engineering; test across language pairs |
+| Word explanation quality varies by language | MEDIUM | LOW | Cache good explanations; allow manual override; test with native speakers |
 
 ### Market Risks
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Korean learning trend fades in CIS | LOW | HIGH | Multi-language design allows pivot to English learning (much larger market) |
-| Duolingo adds Korean-Russian | MEDIUM | MEDIUM | Tili's SRS depth + Telegram distribution are defensible; Duolingo won't match niche focus |
-| Telegram Mini App discoverability is poor | MEDIUM | MEDIUM | Rely on community/viral growth, not store placement |
-| Low willingness to pay in target market | MEDIUM | HIGH | Price at $3.49/mo (lowest viable); add lifetime tier; consider ad-supported free tier |
-| Slow organic growth | HIGH | MEDIUM | Prepare content marketing playbook; budget for small Telegram Ads spend |
+| Korean learning trend fades in CIS | LOW | HIGH | Multi-language design allows pivot to English learning |
+| Duolingo adds Korean-Russian | MEDIUM | MEDIUM | Tili's SRS depth + Telegram distribution are defensible |
+| Telegram Mini App discoverability is poor | MEDIUM | MEDIUM | Rely on community/viral growth |
+| Low willingness to pay in target market | MEDIUM | HIGH | Price at $3.49/mo; add lifetime tier; consider ads |
+| Slow organic growth | HIGH | MEDIUM | Content marketing playbook; budget for Telegram Ads |
 
 ### Financial Risks
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| LLM API costs spike | LOW | LOW | Caching reduces calls 30-50%; can switch to cheapest provider; costs are tiny regardless |
-| Revenue insufficient for founder | HIGH (Year 1) | HIGH | Treat as side project until $2K+/month; keep day job; costs are < $20/month at small scale |
-| Telegram takes larger cut of Stars | LOW | MEDIUM | Current ~35% cut is favorable; even at 50% cut, unit economics work |
+| LLM API costs spike | LOW | LOW | Caching reduces calls 30-50%; switch providers |
+| Revenue insufficient for founder | HIGH (Year 1) | HIGH | Side project until $2K+/month; costs < $20/month at small scale |
+| Telegram takes larger cut of Stars | LOW | MEDIUM | Unit economics still work even at 50% cut |
 
 ### Mitigation Summary
 
-1. **Validate Kyrgyz LLM quality early** -- test 100 common words with native speakers before promising the language pair
-2. **Keep costs near zero** -- SQLite, single VPS, cheapest LLM model. No reason to spend more until 10K+ users
-3. **Design for multi-language from day 1** -- don't hardcode any language. This is the core insurance against market risk
-4. **Build viral loops into the product** -- sharing streaks, challenging friends, referral program. Organic distribution is the moat
+1. **Validate Kyrgyz LLM quality early** -- test 100 common words with native speakers
+2. **Keep costs near zero** -- SQLite, single VPS, GPT-4.1-mini
+3. **Design for multi-language from day 1** -- generic schema, parameterized prompts
+4. **Build viral loops into the product** -- streaks, sharing, referrals
 
 ---
 
@@ -783,19 +1236,15 @@ The unit economics are extremely favorable because:
 
 **Weekly Active Learners (WAL):** Users who completed at least 1 review session in the past 7 days.
 
-This captures both acquisition and retention in a single metric. A growing WAL means users are finding value and returning.
-
-### Phase 1 KPIs (Launch, Weeks 1-6)
+### Phase 1 KPIs (Soft Launch, Weeks 1-6)
 
 | Metric | Target | How to Measure |
 |--------|--------|---------------|
-| Total registered users | 100+ | Users table count |
-| WAL (Weekly Active Learners) | 30+ | Users with >= 1 review in past 7 days |
-| D1 retention | > 40% | Users who return day after first use |
-| D7 retention | > 20% | Users who return 7 days after first use |
-| Cards created per active user | > 5 | Avg cards added in first week |
-| Translations per day (system) | Track | Monitor LLM costs |
+| Active beta testers | 10-20 | Users with ≥ 1 review |
+| Cards created per user | > 10 | Avg cards in first 2 weeks |
+| D7 retention | > 30% | Users who return 7 days after first use |
 | Crash/error rate | < 1% | Error logs |
+| Explanation feature usage | Track | % of cards with explanations generated |
 
 ### Phase 2 KPIs (Growth, Weeks 7-16)
 
@@ -808,7 +1257,7 @@ This captures both acquisition and retention in a single metric. A growing WAL m
 | MRR (Monthly Recurring Revenue) | > $100 | Sum of active subscriptions (net) |
 | Viral coefficient | > 0.3 | New users from referrals / existing users |
 | Average streak length | > 5 days | Median consecutive daily review days |
-| NPS (Net Promoter Score) | > 40 | In-app survey |
+| Quiz completion rate | > 60% | Users who finish a quiz session |
 
 ### Phase 3 KPIs (Scale, Weeks 17-32)
 
@@ -819,56 +1268,69 @@ This captures both acquisition and retention in a single metric. A growing WAL m
 | D30 retention | > 20% | Improving retention |
 | Conversion to premium | > 5% | Higher conversion with more features |
 | MRR | > $1,000 | Sustainable revenue |
-| LTV per user | > $2 | Total revenue / total users |
-| CAC (if doing paid) | < $0.50 | Ad spend / new users from ads |
-| LTV:CAC ratio | > 4:1 | Healthy growth economics |
 | Language pairs active | 5+ | Users active across multiple pairs |
 
 ### Tracking Implementation
 
 For MVP, a lightweight approach:
 
-1. **Usage events table** (already in schema) tracks all user actions
+1. **Users + flashcards tables** already track core metrics
 2. **Daily cron job** aggregates into a `daily_metrics` table
 3. **Simple admin endpoint** (password-protected) returns dashboard JSON
 4. **Weekly founder review** of key metrics
 
-No need for Mixpanel/Amplitude until 5K+ users. The usage_events table gives you everything.
+No need for Mixpanel/Amplitude until 5K+ users.
 
 ---
 
 ## APPENDIX A: Language Pair LLM Prompt Templates
 
-### Korean -> Russian Example
+### Translation Prompt Template
 
 ```
-You are a Korean-Russian language expert. Given a Korean word, phrase, or sentence, provide:
-1. The Korean text (cleaned/corrected if needed)
-2. Russian translation. If the word has multiple meanings, provide the Russian translation for each meaning.
-3. An example sentence in Korean using this word, and its Russian translation.
-   Use polite/존댓말 form for Korean example sentences.
+You are a {source_lang}-{target_lang} language expert. The user will provide a word, phrase, or sentence. They may input text in either {source_lang} or {target_lang}.
+
+Your task:
+1. Detect whether the input is in {source_lang} or {target_lang}
+2. Provide the {source_lang} text (cleaned/corrected if needed) as source_text
+3. Provide the {target_lang} translation as target_text. If the word has multiple meanings, provide all translations.
+4. An example sentence in {source_lang} using this word (as example_source), and its {target_lang} translation (as example_target).
+   {language_specific_instructions}
+
+IMPORTANT: source_text MUST always be in {source_lang}, and target_text MUST always be in {target_lang}.
 
 Respond with ONLY a raw JSON object:
 {"source_text": "...", "target_text": "...", "example_source": "...", "example_target": "..."}
+
+If the input is not a valid word in either language, respond with "Invalid word".
 ```
 
-### English -> Kyrgyz Example
+**Language-specific instructions:**
+- Korean: "Use polite/존댓말 form (e.g. ~요/~습니다 endings) for Korean example sentences."
+- Russian: "Use formal register for Russian example sentences."
+
+### Explanation Prompt Template
 
 ```
-You are an English-Kyrgyz language expert. Given an English word, phrase, or sentence, provide:
-1. The English text (cleaned/corrected if needed)
-2. Kyrgyz translation. If the word has multiple meanings, provide the Kyrgyz translation for each meaning.
-3. An example sentence in English using this word, and its Kyrgyz translation.
+You are a {source_lang} language expert helping a {target_lang} speaker learn {source_lang}.
 
-Respond with ONLY a raw JSON object:
-{"source_text": "...", "target_text": "...", "example_source": "...", "example_target": "..."}
+Explain the word/phrase: "{word}" (meaning: {translation})
+
+Include:
+1. **Word structure/etymology** — roots, origin, how the word is formed
+2. **Word formation** — prefixes, suffixes, particles, conjugation patterns
+3. **Common usage patterns** — formal vs informal, when to use this word
+4. **Additional examples** — 2-3 sentences in {source_lang} with {target_lang} translations
+5. **Related words** — synonyms, antonyms, words with the same root
+
+Respond in {target_lang}. Use markdown formatting.
 ```
 
-## APPENDIX B: Telegram Stars Payment Flow (Technical Detail)
+## APPENDIX B: Telegram Stars Payment Flow (Phase 2)
 
 ```
 User Journey:
-1. User taps "Upgrade" in Mini App
+1. User taps "Upgrade" in Settings page
 2. Mini App calls: POST /api/subscribe {plan: "monthly"}
 3. Backend creates invoice via Bot API:
    bot.create_invoice_link(
@@ -883,50 +1345,48 @@ User Journey:
 6. User pays in Telegram's native UI
 7. Telegram sends pre_checkout_query to bot -> bot answers with ok=True
 8. Telegram sends successful_payment to bot
-9. Bot handler updates user tier + creates subscription record
+9. Handler updates user tier + creates subscription record
 10. Next Mini App API call sees premium tier
 ```
 
 ## APPENDIX C: File Change Map
 
-Files that need modification (estimated):
+### Phase 1 — New Files
 
-**New files:**
-- `tili-core/tili_core/db/connection.py` (extracted)
-- `tili-core/tili_core/db/models.py` (extracted + refactored)
-- `tili-core/tili_core/services/llm.py` (extracted + parameterized)
-- `tili-core/tili_core/services/srs.py` (extracted)
-- `tili-core/tili_core/config.py` (extracted)
-- `tili-core/tili_core/languages.py` (new: language pair config)
-- `tiliminiapp/backend/routers/subscribe.py` (new: payment endpoints)
-- `tiliminiapp/frontend/src/pages/SettingsPage.tsx` (new: language selector, subscription)
-- `tiliminiapp/frontend/src/pages/OnboardingPage.tsx` (new)
-- `tilibot/bot/handlers/language.py` (new: /language command)
-- `tilibot/bot/handlers/subscribe.py` (new: payment handler)
+| File | Description |
+|------|-------------|
+| `backend/routers/decks.py` | Deck CRUD endpoints |
+| `backend/routers/users.py` | User profile + preferences endpoints |
+| `frontend/src/pages/SettingsPage.tsx` | Language pair selector, settings |
+| `frontend/src/utils/languages.ts` | Language pair code → display names |
 
-**Modified files:**
-- `tilibot/bot/db/models.py` -> import from tili-core
-- `tilibot/bot/services/llm.py` -> import from tili-core
-- `tilibot/bot/services/srs.py` -> import from tili-core
-- `tilibot/bot/handlers/add.py` -> use language_pair
-- `tilibot/bot/handlers/practice.py` -> use language_pair
-- `tilibot/bot/main.py` -> register new handlers
-- `tiliminiapp/backend/routers/cards.py` -> use language_pair, tier limits
-- `tiliminiapp/backend/routers/practice.py` -> use language_pair
-- `tiliminiapp/backend/main.py` -> register subscribe router
-- `tiliminiapp/frontend/src/types.ts` -> updated interfaces
-- `tiliminiapp/frontend/src/api.ts` -> new endpoints
-- `tiliminiapp/frontend/src/App.tsx` -> new routes
-- `tiliminiapp/frontend/src/pages/AddCardPage.tsx` -> language pair aware
-- `tiliminiapp/frontend/src/pages/PracticePage.tsx` -> language pair aware
-- `tiliminiapp/frontend/src/contexts/AppContext.tsx` -> language pair + tier state
+### Phase 1 — Modified Files
 
-**Additional frontend files with hardcoded Korean/English (Architect finding):**
-- `tiliminiapp/frontend/src/components/FlashCard.tsx` -> `showSide` type `'korean' | 'english'` must become generic; labels "Korean"/"English" hardcoded
-- `tiliminiapp/frontend/src/pages/HomePage.tsx` -> "Ready to learn Korean?" text
-- `tiliminiapp/frontend/src/components/DifficultyButtons.tsx` -> review if language-specific
+| File | Changes |
+|------|---------|
+| `backend/db/connection.py` | New schema (users, decks, explanations, translation_cache, schema_versions), migration logic |
+| `backend/db/models.py` | All functions updated for new columns + new deck/user/explanation functions |
+| `backend/services/llm.py` | Parameterized prompts, `translate()` replaces `translate_korean()`, `explain_word()` added, default model GPT-4.1-mini |
+| `backend/config.py` | Default LLM_PROVIDER → openai, LLM_MODEL → gpt-4.1-mini |
+| `backend/routers/cards.py` | New field names, deck_id, language_pair, explanation endpoints |
+| `backend/routers/practice.py` | Language pair filter, streak update call |
+| `backend/routers/stats.py` | Language pair filter, streak data in response |
+| `backend/main.py` | Register decks + users routers |
+| `frontend/src/types.ts` | Flashcard/TranslationResult field renames, Deck interface, updated UserStats |
+| `frontend/src/api.ts` | New endpoints (decks, user profile, explanation), updated field names |
+| `frontend/src/App.tsx` | Settings route |
+| `frontend/src/contexts/AppContext.tsx` | activeLanguagePair state, user profile fetch |
+| `frontend/src/styles/global.css` | PC scrolling fix (overflow-y: auto) |
+| `frontend/src/pages/HomePage.tsx` | Streak display, gear icon, dynamic language labels |
+| `frontend/src/pages/AddCardPage.tsx` | Dynamic labels, deck selector, explain button, bidirectional input |
+| `frontend/src/pages/PracticePage.tsx` | Reverse practice toggle, dynamic labels, explain button, source/target naming |
+| `frontend/src/pages/CardsListPage.tsx` | Deck chip filter, dynamic labels, explain button, field renames |
+| `frontend/src/pages/StatsPage.tsx` | Streak section, language pair stats |
+| `frontend/src/components/FlashCard.tsx` | `showSide` type change, dynamic labels, field renames |
+| `frontend/src/components/NavigationBar.tsx` | Review if any hardcoded labels |
+| `.env.example` | Updated defaults |
 
-**Estimated total:** ~15 new files, ~18 modified files (frontend effort is larger than initially scoped -- at least 7 existing frontend files need field name changes and dynamic label rendering, adding ~2-3 days to Week 2-3)
+**Estimated total:** ~4 new files, ~21 modified files
 
 ---
 
