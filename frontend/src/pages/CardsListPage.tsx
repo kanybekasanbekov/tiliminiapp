@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Section, Cell, Button, Input } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
@@ -11,10 +11,9 @@ import { getLanguageNames } from '../utils/languages'
 
 export default function CardsListPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const deckIdParam = searchParams.get('deck')
-  const deckId = deckIdParam ? Number(deckIdParam) : undefined
-  const [deckName, setDeckName] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialDeckParam = useRef(searchParams.get('deck'))
+
   const [cards, setCards] = useState<Flashcard[]>([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -22,7 +21,27 @@ export default function CardsListPage() {
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<number | null>(null)
 
-  // Edit modal state
+  // Deck state
+  const [decks, setDecks] = useState<Deck[]>([])
+  const [selectedDeckId, setSelectedDeckId] = useState<number | undefined>(
+    initialDeckParam.current ? Number(initialDeckParam.current) : undefined
+  )
+  const [decksLoading, setDecksLoading] = useState(true)
+
+  // Deck action menu
+  const [actionDeckId, setActionDeckId] = useState<number | null>(null)
+
+  // Create deck modal
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [createName, setCreateName] = useState('')
+  const [createSaving, setCreateSaving] = useState(false)
+
+  // Edit deck modal
+  const [editingDeck, setEditingDeck] = useState<Deck | null>(null)
+  const [editDeckName, setEditDeckName] = useState('')
+  const [editDeckSaving, setEditDeckSaving] = useState(false)
+
+  // Edit card modal state
   const [editingCard, setEditingCard] = useState<Flashcard | null>(null)
   const [editForm, setEditForm] = useState({ target_text: '', example_source: '', example_target: '' })
   const [editSaving, setEditSaving] = useState(false)
@@ -34,7 +53,26 @@ export default function CardsListPage() {
 
   const editLang = editingCard ? getLanguageNames(editingCard.language_pair) : { source: '', target: '' }
 
-  const loadCards = async (p: number) => {
+  // Clear URL param on mount if present
+  useEffect(() => {
+    if (initialDeckParam.current) {
+      setSearchParams({}, { replace: true })
+    }
+  }, [])
+
+  const loadDecks = async () => {
+    setDecksLoading(true)
+    try {
+      const data = await api.getDecks()
+      setDecks(data.decks)
+    } catch {
+      // ignore
+    } finally {
+      setDecksLoading(false)
+    }
+  }
+
+  const loadCards = async (p: number, deckId?: number) => {
     setLoading(true)
     try {
       const data = await api.getCards(p, 10, deckId)
@@ -50,13 +88,82 @@ export default function CardsListPage() {
   }
 
   useEffect(() => {
-    loadCards(1)
-    if (deckId != null) {
-      api.getDeck(deckId).then((d) => setDeckName(d.name)).catch(() => {})
+    loadDecks()
+  }, [])
+
+  useEffect(() => {
+    loadCards(1, selectedDeckId)
+  }, [selectedDeckId])
+
+  const handleChipTap = (deckId: number | undefined) => {
+    if (deckId === selectedDeckId && deckId != null) {
+      // Tapping already-selected deck → show action menu
+      setActionDeckId(deckId)
     } else {
-      setDeckName(null)
+      setSelectedDeckId(deckId)
+      setActionDeckId(null)
     }
-  }, [deckId])
+  }
+
+  const selectedDeck = decks.find((d) => d.id === selectedDeckId)
+  const totalCardCount = decks.reduce((sum, d) => sum + d.card_count, 0)
+
+  // --- Deck CRUD ---
+
+  const handleCreateDeck = async () => {
+    if (!createName.trim()) return
+    setCreateSaving(true)
+    try {
+      const newDeck = await api.createDeck({ name: createName.trim() })
+      WebApp.HapticFeedback.notificationOccurred('success')
+      setShowCreateModal(false)
+      setCreateName('')
+      await loadDecks()
+      setSelectedDeckId(newDeck.id)
+    } catch {
+      WebApp.HapticFeedback.notificationOccurred('error')
+    } finally {
+      setCreateSaving(false)
+    }
+  }
+
+  const handleEditDeck = async () => {
+    if (!editingDeck || !editDeckName.trim()) return
+    setEditDeckSaving(true)
+    try {
+      await api.updateDeck(editingDeck.id, { name: editDeckName.trim() })
+      WebApp.HapticFeedback.notificationOccurred('success')
+      setEditingDeck(null)
+      setEditDeckName('')
+      await loadDecks()
+    } catch {
+      WebApp.HapticFeedback.notificationOccurred('error')
+    } finally {
+      setEditDeckSaving(false)
+    }
+  }
+
+  const handleDeleteDeck = (deck: Deck) => {
+    if (deck.is_default) return
+    setActionDeckId(null)
+    WebApp.showConfirm(
+      `Delete "${deck.name}"? Cards will be moved to the default deck.`,
+      async (confirmed) => {
+        if (!confirmed) return
+        try {
+          await api.deleteDeck(deck.id)
+          WebApp.HapticFeedback.notificationOccurred('success')
+          setSelectedDeckId(undefined)
+          await loadDecks()
+          loadCards(1, undefined)
+        } catch {
+          WebApp.HapticFeedback.notificationOccurred('error')
+        }
+      }
+    )
+  }
+
+  // --- Card CRUD ---
 
   const handleDelete = async (card: Flashcard) => {
     WebApp.showConfirm(
@@ -66,7 +173,8 @@ export default function CardsListPage() {
         try {
           await api.deleteCard(card.id)
           WebApp.HapticFeedback.notificationOccurred('success')
-          loadCards(page)
+          loadCards(page, selectedDeckId)
+          loadDecks()
         } catch {
           WebApp.HapticFeedback.notificationOccurred('error')
         }
@@ -92,7 +200,7 @@ export default function CardsListPage() {
       await api.updateCard(editingCard.id, editForm)
       WebApp.HapticFeedback.notificationOccurred('success')
       setEditingCard(null)
-      loadCards(page)
+      loadCards(page, selectedDeckId)
     } catch (e: any) {
       setEditError(e.message || 'Failed to save')
       WebApp.HapticFeedback.notificationOccurred('error')
@@ -106,125 +214,244 @@ export default function CardsListPage() {
     setViewingCard(card)
   }
 
-  if (loading && cards.length === 0) return <LoadingSpinner text="Loading cards..." />
-
-  if (!loading && cards.length === 0) {
-    return (
-      <div className="page">
-        <EmptyState
-          icon="🗂"
-          title="No Cards Yet"
-          description="Add your first flashcard to get started!"
-          action={{ label: 'Add Card', onClick: () => navigate('/add') }}
-        />
-      </div>
-    )
-  }
+  if (loading && cards.length === 0 && decksLoading) return <LoadingSpinner text="Loading cards..." />
 
   return (
     <div className="page">
       <div style={{ padding: '24px 16px 8px' }}>
-        {deckId != null && (
-          <button
-            onClick={() => navigate('/decks')}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--tg-button-color)',
-              fontSize: '14px',
-              padding: 0,
-              marginBottom: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            ← Back to Decks
-          </button>
-        )}
         <h1 style={{ fontSize: '24px', fontWeight: 700 }}>
-          {deckName ?? 'My Cards'}
+          {selectedDeck ? selectedDeck.name : 'My Cards'}
         </h1>
         <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '14px' }}>
-          {total} card{total !== 1 ? 's' : ''}{deckId != null ? ' in this deck' : ' total'}
+          {total} card{total !== 1 ? 's' : ''}{selectedDeckId != null ? ' in this deck' : ' total'}
         </p>
       </div>
 
-      <Section>
-        {cards.map((card) => (
-          <div key={card.id}>
-            <Cell
-              onClick={() => setExpandedId(expandedId === card.id ? null : card.id)}
-              subtitle={card.target_text}
-              after={
-                <span style={{ fontSize: '11px', color: 'var(--tg-hint-color)' }}>
-                  {new Date(card.next_review).toLocaleDateString()}
-                </span>
-              }
+      {/* Deck chip bar */}
+      <div style={{
+        display: 'flex',
+        gap: '8px',
+        padding: '4px 16px 12px',
+        overflowX: 'auto',
+        whiteSpace: 'nowrap',
+        msOverflowStyle: 'none',
+        scrollbarWidth: 'none',
+      }}>
+        <style>{`.chip-bar::-webkit-scrollbar { display: none; }`}</style>
+        {/* All chip */}
+        <button
+          className="chip-bar"
+          onClick={() => handleChipTap(undefined)}
+          style={{
+            flexShrink: 0,
+            border: 'none',
+            borderRadius: '16px',
+            padding: '6px 14px',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            background: selectedDeckId == null ? 'var(--tg-button-color)' : 'var(--tg-secondary-bg-color)',
+            color: selectedDeckId == null ? 'var(--tg-button-text-color)' : 'var(--tg-text-color)',
+          }}
+        >
+          All ({totalCardCount})
+        </button>
+
+        {decks.map((deck) => (
+          <button
+            key={deck.id}
+            className="chip-bar"
+            onClick={() => handleChipTap(deck.id)}
+            style={{
+              flexShrink: 0,
+              border: 'none',
+              borderRadius: '16px',
+              padding: '6px 14px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: selectedDeckId === deck.id ? 'var(--tg-button-color)' : 'var(--tg-secondary-bg-color)',
+              color: selectedDeckId === deck.id ? 'var(--tg-button-text-color)' : 'var(--tg-text-color)',
+            }}
+          >
+            {deck.name} ({deck.card_count})
+          </button>
+        ))}
+
+        {/* + New chip */}
+        <button
+          className="chip-bar"
+          onClick={() => { setShowCreateModal(true); setCreateName('') }}
+          style={{
+            flexShrink: 0,
+            border: '1.5px dashed var(--tg-hint-color)',
+            borderRadius: '16px',
+            padding: '6px 14px',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            background: 'transparent',
+            color: 'var(--tg-hint-color)',
+          }}
+        >
+          + New
+        </button>
+      </div>
+
+      {/* Deck action menu */}
+      {actionDeckId != null && (() => {
+        const deck = decks.find((d) => d.id === actionDeckId)
+        if (!deck) return null
+        return (
+          <div
+            onClick={() => setActionDeckId(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: 'var(--tg-bg-color)',
+                borderRadius: '16px 16px 0 0',
+                padding: '16px',
+                width: '100%',
+                maxWidth: '400px',
+              }}
             >
-              {card.source_text}
-            </Cell>
-            {expandedId === card.id && (
-              <div style={{
-                padding: '12px 16px 16px',
-                backgroundColor: 'var(--tg-secondary-bg-color)',
-                fontSize: '14px',
-              }}>
-                {card.example_source && (
-                  <div style={{ marginBottom: '8px' }}>
-                    <div style={{ color: 'var(--tg-hint-color)', fontSize: '12px', marginBottom: '2px' }}>Example</div>
-                    <div>{card.example_source}</div>
-                    {card.example_target && (
-                      <div style={{ color: 'var(--tg-hint-color)', fontStyle: 'italic', marginTop: '2px' }}>
-                        {card.example_target}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--tg-hint-color)', marginBottom: '12px' }}>
-                  <span>Ease: {card.ease_factor.toFixed(2)}</span>
-                  <span>Interval: {card.interval_days}d</span>
-                  <span>Reps: {card.repetitions}</span>
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px', textAlign: 'center' }}>
+                {deck.name}
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <Button
+                  size="l"
+                  mode="outline"
+                  stretched
+                  onClick={() => {
+                    setActionDeckId(null)
+                    setEditDeckName(deck.name)
+                    setEditingDeck(deck)
+                  }}
+                >
+                  Edit Name
+                </Button>
+                {!deck.is_default && (
                   <Button
-                    size="s"
+                    size="l"
                     mode="outline"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openView(card)
-                    }}
-                  >
-                    View
-                  </Button>
-                  <Button
-                    size="s"
-                    mode="outline"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openEdit(card)
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="s"
-                    mode="outline"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDelete(card)
-                    }}
+                    stretched
+                    onClick={() => handleDeleteDeck(deck)}
                     style={{ color: '#ff3b30' }}
                   >
-                    Delete
+                    Delete Deck
                   </Button>
-                </div>
+                )}
+                <Button
+                  size="l"
+                  mode="outline"
+                  stretched
+                  onClick={() => setActionDeckId(null)}
+                >
+                  Cancel
+                </Button>
               </div>
-            )}
+            </div>
           </div>
-        ))}
-      </Section>
+        )
+      })()}
+
+      {/* Card list or empty state */}
+      {!loading && cards.length === 0 ? (
+        <div style={{ padding: '32px 16px' }}>
+          <EmptyState
+            icon="🗂"
+            title={selectedDeckId != null ? 'No Cards in This Deck' : 'No Cards Yet'}
+            description={selectedDeckId != null ? 'Add cards and assign them to this deck.' : 'Add your first flashcard to get started!'}
+            action={{ label: 'Add Card', onClick: () => navigate('/add') }}
+          />
+        </div>
+      ) : (
+        <Section>
+          {cards.map((card) => (
+            <div key={card.id}>
+              <Cell
+                onClick={() => setExpandedId(expandedId === card.id ? null : card.id)}
+                subtitle={card.target_text}
+                after={
+                  <span style={{ fontSize: '11px', color: 'var(--tg-hint-color)' }}>
+                    {new Date(card.next_review).toLocaleDateString()}
+                  </span>
+                }
+              >
+                {card.source_text}
+              </Cell>
+              {expandedId === card.id && (
+                <div style={{
+                  padding: '12px 16px 16px',
+                  backgroundColor: 'var(--tg-secondary-bg-color)',
+                  fontSize: '14px',
+                }}>
+                  {card.example_source && (
+                    <div style={{ marginBottom: '8px' }}>
+                      <div style={{ color: 'var(--tg-hint-color)', fontSize: '12px', marginBottom: '2px' }}>Example</div>
+                      <div>{card.example_source}</div>
+                      {card.example_target && (
+                        <div style={{ color: 'var(--tg-hint-color)', fontStyle: 'italic', marginTop: '2px' }}>
+                          {card.example_target}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--tg-hint-color)', marginBottom: '12px' }}>
+                    <span>Ease: {card.ease_factor.toFixed(2)}</span>
+                    <span>Interval: {card.interval_days}d</span>
+                    <span>Reps: {card.repetitions}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <Button
+                      size="s"
+                      mode="outline"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openView(card)
+                      }}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      size="s"
+                      mode="outline"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEdit(card)
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="s"
+                      mode="outline"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(card)
+                      }}
+                      style={{ color: '#ff3b30' }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </Section>
+      )}
 
       {totalPages > 1 && (
         <div style={{
@@ -238,7 +465,7 @@ export default function CardsListPage() {
             size="s"
             mode="outline"
             disabled={page <= 1}
-            onClick={() => loadCards(page - 1)}
+            onClick={() => loadCards(page - 1, selectedDeckId)}
           >
             Previous
           </Button>
@@ -249,10 +476,127 @@ export default function CardsListPage() {
             size="s"
             mode="outline"
             disabled={page >= totalPages}
-            onClick={() => loadCards(page + 1)}
+            onClick={() => loadCards(page + 1, selectedDeckId)}
           >
             Next
           </Button>
+        </div>
+      )}
+
+      {/* Create Deck Modal */}
+      {showCreateModal && (
+        <div
+          onClick={() => setShowCreateModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '16px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--tg-bg-color)',
+              borderRadius: '16px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '400px',
+            }}
+          >
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>New Deck</h2>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
+                Deck Name
+              </label>
+              <Input
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                placeholder="e.g. TOPIK Vocab"
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Button
+                size="l"
+                mode="outline"
+                stretched
+                onClick={() => setShowCreateModal(false)}
+                disabled={createSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="l"
+                stretched
+                onClick={handleCreateDeck}
+                disabled={createSaving || !createName.trim()}
+              >
+                {createSaving ? 'Creating...' : 'Create'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Deck Modal */}
+      {editingDeck && (
+        <div
+          onClick={() => setEditingDeck(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '16px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--tg-bg-color)',
+              borderRadius: '16px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '400px',
+            }}
+          >
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>Edit Deck</h2>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
+                Deck Name
+              </label>
+              <Input
+                value={editDeckName}
+                onChange={(e) => setEditDeckName(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Button
+                size="l"
+                mode="outline"
+                stretched
+                onClick={() => setEditingDeck(null)}
+                disabled={editDeckSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="l"
+                stretched
+                onClick={handleEditDeck}
+                disabled={editDeckSaving || !editDeckName.trim()}
+              >
+                {editDeckSaving ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
