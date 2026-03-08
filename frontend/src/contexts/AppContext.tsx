@@ -15,6 +15,8 @@ interface AppContextType {
   activeLanguagePair: string
   setActiveLanguagePair: (pair: string) => void
   languagePairVersion: number
+  langSwitchMessage: string
+  setLangSwitchMessage: (msg: string) => void
 }
 
 const AppContext = createContext<AppContextType>({
@@ -25,12 +27,15 @@ const AppContext = createContext<AppContextType>({
   activeLanguagePair: 'ko-en',
   setActiveLanguagePair: () => {},
   languagePairVersion: 0,
+  langSwitchMessage: '',
+  setLangSwitchMessage: () => {},
 })
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [dueCount, setDueCount] = useState(0)
   const [activeLanguagePair, setActiveLanguagePairRaw] = useState('ko-en')
   const [languagePairVersion, setLanguagePairVersion] = useState(0)
+  const [langSwitchMessage, setLangSwitchMessage] = useState('')
 
   const setActiveLanguagePair = (pair: string) => {
     setActiveLanguagePairRaw(pair)
@@ -66,7 +71,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AppContext.Provider value={{ user, colorScheme, dueCount, setDueCount, activeLanguagePair, setActiveLanguagePair, languagePairVersion }}>
+    <AppContext.Provider value={{ user, colorScheme, dueCount, setDueCount, activeLanguagePair, setActiveLanguagePair, languagePairVersion, langSwitchMessage, setLangSwitchMessage }}>
       {children}
     </AppContext.Provider>
   )

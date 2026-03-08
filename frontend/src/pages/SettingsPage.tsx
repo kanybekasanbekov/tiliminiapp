@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Section, Cell } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import { useApp } from '../contexts/AppContext'
@@ -8,7 +9,8 @@ import { getLanguageNames } from '../utils/languages'
 const SUPPORTED_PAIRS = ['ko-en', 'en-ko', 'ko-ru', 'en-ru']
 
 export default function SettingsPage() {
-  const { activeLanguagePair, setActiveLanguagePair } = useApp()
+  const navigate = useNavigate()
+  const { activeLanguagePair, setActiveLanguagePair, setLangSwitchMessage } = useApp()
   const [saving, setSaving] = useState(false)
 
   const handleSelect = async (pair: string) => {
@@ -19,6 +21,9 @@ export default function SettingsPage() {
     try {
       await api.updatePreferences({ active_language_pair: pair })
       WebApp.HapticFeedback.notificationOccurred('success')
+      const { source, target } = getLanguageNames(pair)
+      setLangSwitchMessage(`Switched to ${source} → ${target}`)
+      navigate('/')
     } catch {
       setActiveLanguagePair(previous)
       WebApp.HapticFeedback.notificationOccurred('error')

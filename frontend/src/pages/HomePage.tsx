@@ -7,7 +7,7 @@ import { getLanguageNames } from '../utils/languages'
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { user, dueCount, setDueCount, activeLanguagePair, languagePairVersion } = useApp()
+  const { user, dueCount, setDueCount, activeLanguagePair, languagePairVersion, langSwitchMessage, setLangSwitchMessage } = useApp()
   const [streak, setStreak] = useState(0)
   const lang = getLanguageNames(activeLanguagePair)
 
@@ -17,6 +17,13 @@ export default function HomePage() {
       setStreak(stats.current_streak)
     }).catch(() => {})
   }, [setDueCount, activeLanguagePair, languagePairVersion])
+
+  // Auto-clear language switch toast
+  useEffect(() => {
+    if (!langSwitchMessage) return
+    const timer = setTimeout(() => setLangSwitchMessage(''), 3000)
+    return () => clearTimeout(timer)
+  }, [langSwitchMessage, setLangSwitchMessage])
 
   return (
     <div className="page">
@@ -45,6 +52,20 @@ export default function HomePage() {
           ⚙
         </button>
       </div>
+
+      {langSwitchMessage && (
+        <div style={{
+          margin: '0 16px 12px',
+          padding: '12px 16px',
+          backgroundColor: '#34c75920',
+          borderRadius: '12px',
+          color: '#34c759',
+          fontSize: '14px',
+          fontWeight: 500,
+        }}>
+          {langSwitchMessage}
+        </div>
+      )}
 
       {streak > 0 && (
         <div style={{
