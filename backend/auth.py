@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, unquote
 from fastapi import Depends, HTTPException, Request, status
 
 from backend import config
+from backend.db import models
 
 
 def validate_init_data(init_data: str, bot_token: str) -> bool:
@@ -122,3 +123,19 @@ async def get_current_user(request: Request) -> dict[str, Any]:
         )
 
     return user
+
+
+async def ensure_user(
+    request: Request,
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Validate auth and upsert user record in DB. Returns merged user dict."""
+    db = request.app.state.db
+    db_user = await models.get_or_create_user(
+        db,
+        user["id"],
+        first_name=user.get("first_name"),
+        username=user.get("username"),
+        last_name=user.get("last_name"),
+    )
+    return {**user, **db_user}

@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from backend.auth import get_current_user
+from backend.auth import ensure_user
 from backend.db import models
 
 router = APIRouter()
@@ -33,7 +33,7 @@ class CardUpdateRequest(BaseModel):
 async def translate_word(
     body: TranslateRequest,
     request: Request,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(ensure_user),
 ):
     """Translate a Korean word using AI."""
     llm = request.app.state.llm
@@ -50,7 +50,7 @@ async def translate_word(
 async def create_card(
     body: CardCreateRequest,
     request: Request,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(ensure_user),
 ):
     """Save a new flashcard."""
     db = request.app.state.db
@@ -72,7 +72,7 @@ async def list_cards(
     request: Request,
     page: int = 1,
     per_page: int = 10,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(ensure_user),
 ):
     """List user's flashcards with pagination."""
     db = request.app.state.db
@@ -95,7 +95,7 @@ async def list_cards(
 async def get_card(
     card_id: int,
     request: Request,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(ensure_user),
 ):
     """Get a single flashcard."""
     db = request.app.state.db
@@ -110,7 +110,7 @@ async def update_card(
     card_id: int,
     body: CardUpdateRequest,
     request: Request,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(ensure_user),
 ):
     """Update a flashcard's editable fields."""
     db = request.app.state.db
@@ -126,7 +126,7 @@ async def update_card(
 async def delete_card(
     card_id: int,
     request: Request,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(ensure_user),
 ):
     """Delete a flashcard."""
     db = request.app.state.db

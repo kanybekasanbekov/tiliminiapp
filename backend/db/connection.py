@@ -17,6 +17,21 @@ CREATE TABLE IF NOT EXISTS flashcards (
 );
 """
 
+_USERS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY,
+    telegram_username TEXT,
+    first_name TEXT,
+    last_name TEXT,
+    active_language_pair TEXT DEFAULT 'ko-en',
+    current_streak INTEGER DEFAULT 0,
+    longest_streak INTEGER DEFAULT 0,
+    last_practice_date TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
 _INDEXES = """
 CREATE INDEX IF NOT EXISTS idx_user_review ON flashcards(user_id, next_review);
 CREATE INDEX IF NOT EXISTS idx_user_source ON flashcards(user_id, language_pair, source_text);
@@ -89,6 +104,22 @@ async def _run_migrations(conn: aiosqlite.Connection) -> None:
     await conn.commit()
 
 
+async def _run_migration_2(conn: aiosqlite.Connection) -> None:
+    """Migration 2: Create users table and backfill from flashcards."""
+    cursor = await conn.execute("SELECT 1 FROM schema_versions WHERE version = 2")
+    if await cursor.fetchone():
+        return
+
+    # Backfill existing users from flashcard data
+    await conn.execute(
+        "INSERT OR IGNORE INTO users (id) SELECT DISTINCT user_id FROM flashcards"
+    )
+    await conn.execute(
+        "INSERT INTO schema_versions (version, description) VALUES (2, 'create users table and backfill')"
+    )
+    await conn.commit()
+
+
 async def init_db(db_path: str) -> aiosqlite.Connection:
     """Open the database, enable WAL mode, and create schema if needed."""
     conn = await aiosqlite.connect(db_path)
@@ -99,7 +130,9 @@ async def init_db(db_path: str) -> aiosqlite.Connection:
     await conn.execute("PRAGMA cache_size=-2000")
     await conn.execute("PRAGMA temp_store=MEMORY")
     await conn.executescript(_SCHEMA)
+    await conn.executescript(_USERS_SCHEMA)
     await _run_migrations(conn)
+    await _run_migration_2(conn)
     await conn.executescript(_INDEXES)
     await conn.commit()
     return conn

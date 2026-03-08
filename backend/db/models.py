@@ -5,6 +5,83 @@ from datetime import datetime
 import aiosqlite
 
 
+async def get_or_create_user(
+    conn: aiosqlite.Connection,
+    user_id: int,
+    first_name: str | None = None,
+    username: str | None = None,
+    last_name: str | None = None,
+) -> dict:
+    """Upsert a user record. Creates if not exists, updates Telegram profile fields."""
+    await conn.execute(
+        "INSERT OR IGNORE INTO users (id) VALUES (?)",
+        (user_id,),
+    )
+
+    # Update Telegram profile fields (keep fresh)
+    updates = ["updated_at = CURRENT_TIMESTAMP"]
+    params: list = []
+    if first_name is not None:
+        updates.append("first_name = ?")
+        params.append(first_name)
+    if username is not None:
+        updates.append("telegram_username = ?")
+        params.append(username)
+    if last_name is not None:
+        updates.append("last_name = ?")
+        params.append(last_name)
+
+    params.append(user_id)
+    await conn.execute(
+        f"UPDATE users SET {', '.join(updates)} WHERE id = ?",
+        params,
+    )
+    await conn.commit()
+
+    cursor = await conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    row = await cursor.fetchone()
+    return dict(row)  # type: ignore[arg-type]
+
+
+async def get_user(
+    conn: aiosqlite.Connection,
+    user_id: int,
+) -> dict | None:
+    """Fetch a user by id."""
+    cursor = await conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    row = await cursor.fetchone()
+    return dict(row) if row else None
+
+
+async def update_user_preferences(
+    conn: aiosqlite.Connection,
+    user_id: int,
+    **kwargs: str | int | None,
+) -> dict | None:
+    """Update user preference fields. Returns updated user or None."""
+    allowed = {"active_language_pair", "current_streak", "longest_streak", "last_practice_date"}
+    updates = ["updated_at = CURRENT_TIMESTAMP"]
+    params: list = []
+
+    for key, value in kwargs.items():
+        if key not in allowed:
+            continue
+        updates.append(f"{key} = ?")
+        params.append(value)
+
+    if len(updates) == 1:
+        # Only updated_at, nothing meaningful to change
+        return await get_user(conn, user_id)
+
+    params.append(user_id)
+    await conn.execute(
+        f"UPDATE users SET {', '.join(updates)} WHERE id = ?",
+        params,
+    )
+    await conn.commit()
+    return await get_user(conn, user_id)
+
+
 async def add_flashcard(
     conn: aiosqlite.Connection,
     user_id: int,

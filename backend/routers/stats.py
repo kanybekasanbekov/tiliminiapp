@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
-from backend.auth import get_current_user
+from backend.auth import ensure_user
 from backend.db import models
 
 router = APIRouter()
@@ -13,7 +13,7 @@ router = APIRouter()
 @router.get("")
 async def get_stats(
     request: Request,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(ensure_user),
 ):
     """Get user learning statistics."""
     db = request.app.state.db

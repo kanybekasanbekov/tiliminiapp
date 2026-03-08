@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from backend.auth import get_current_user
+from backend.auth import ensure_user
 from backend.db import models
 from backend.services.srs import SRSResult, calculate_srs, difficulty_to_quality
 
@@ -21,7 +21,7 @@ class ReviewRequest(BaseModel):
 async def get_due_cards(
     request: Request,
     limit: int = 20,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(ensure_user),
 ):
     """Get cards due for review."""
     db = request.app.state.db
@@ -42,7 +42,7 @@ async def get_due_cards(
 async def submit_review(
     body: ReviewRequest,
     request: Request,
-    user: dict[str, Any] = Depends(get_current_user),
+    user: dict[str, Any] = Depends(ensure_user),
 ):
     """Submit a review rating for a card."""
     db = request.app.state.db
