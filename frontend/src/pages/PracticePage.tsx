@@ -18,7 +18,7 @@ interface SavedSession {
   currentIndex: number
   reviewed: number
   totalDue: number
-  showSide: 'korean' | 'english'
+  showSide: 'source' | 'target'
   timestamp: number
 }
 
@@ -52,7 +52,7 @@ export default function PracticePage() {
   const [cards, setCards] = useState<Flashcard[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showAnswer, setShowAnswer] = useState(false)
-  const [showSide, setShowSide] = useState<'korean' | 'english'>('korean')
+  const [showSide, setShowSide] = useState<'source' | 'target'>('source')
   const [loading, setLoading] = useState(true)
   const [reviewing, setReviewing] = useState(false)
   const [totalDue, setTotalDue] = useState(0)
@@ -86,7 +86,7 @@ export default function PracticePage() {
         if (data.cards.length === 0) {
           setSessionComplete(true)
         } else {
-          setShowSide(Math.random() > 0.5 ? 'korean' : 'english')
+          setShowSide(Math.random() > 0.5 ? 'source' : 'target')
         }
       } catch {
         // ignore
@@ -130,7 +130,7 @@ export default function PracticePage() {
       if (currentIndex + 1 < cards.length) {
         setCurrentIndex((i) => i + 1)
         setShowAnswer(false)
-        setShowSide(Math.random() > 0.5 ? 'korean' : 'english')
+        setShowSide(Math.random() > 0.5 ? 'source' : 'target')
       } else {
         setSessionComplete(true)
       }

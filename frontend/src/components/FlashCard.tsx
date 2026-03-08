@@ -2,14 +2,14 @@ import type { Flashcard } from '../types'
 
 interface FlashCardProps {
   card: Flashcard
-  showSide: 'korean' | 'english'
+  showSide: 'source' | 'target'
   revealed: boolean
 }
 
 export default function FlashCard({ card, showSide, revealed }: FlashCardProps) {
-  const question = showSide === 'korean' ? card.korean : card.english
-  const questionLabel = showSide === 'korean' ? 'Korean' : 'English'
-  const prompt = showSide === 'korean'
+  const question = showSide === 'source' ? card.source_text : card.target_text
+  const questionLabel = showSide === 'source' ? 'Korean' : 'English'
+  const prompt = showSide === 'source'
     ? 'What does this mean in English?'
     : 'How do you say this in Korean?'
 
@@ -43,7 +43,7 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
               {questionLabel}
             </span>
             <span style={{
-              fontSize: showSide === 'korean' ? '32px' : '24px',
+              fontSize: showSide === 'source' ? '32px' : '24px',
               fontWeight: 700,
               lineHeight: 1.3,
               marginBottom: '16px',
@@ -69,7 +69,7 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
                 Korean
               </span>
               <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '4px' }}>
-                {card.korean}
+                {card.source_text}
               </div>
             </div>
 
@@ -83,11 +83,11 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
                 English
               </span>
               <div style={{ fontSize: '20px', fontWeight: 600, marginTop: '4px' }}>
-                {card.english}
+                {card.target_text}
               </div>
             </div>
 
-            {card.example_kr && (
+            {card.example_source && (
               <div style={{
                 borderTop: '1px solid var(--tg-bg-color)',
                 paddingTop: '16px',
@@ -101,16 +101,16 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
                   Example
                 </span>
                 <div style={{ fontSize: '16px', marginTop: '4px', lineHeight: 1.5 }}>
-                  {card.example_kr}
+                  {card.example_source}
                 </div>
-                {card.example_en && (
+                {card.example_target && (
                   <div style={{
                     fontSize: '14px',
                     color: 'var(--tg-hint-color)',
                     marginTop: '4px',
                     fontStyle: 'italic',
                   }}>
-                    {card.example_en}
+                    {card.example_target}
                   </div>
                 )}
               </div>

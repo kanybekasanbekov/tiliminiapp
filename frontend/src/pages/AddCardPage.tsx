@@ -99,7 +99,7 @@ export default function AddCardPage() {
     setSaving(true)
     setError('')
     try {
-      const savedWord = editData.korean
+      const savedWord = editData.source_text
       await api.createCard(editData)
       WebApp.HapticFeedback.notificationOccurred('success')
       setWord('')
@@ -180,24 +180,24 @@ export default function AddCardPage() {
         <>
           <Section header="Translation Result">
             <Cell subtitle="Korean">
-              <span style={{ fontSize: '18px' }}>{editData.korean}</span>
+              <span style={{ fontSize: '18px' }}>{editData.source_text}</span>
             </Cell>
             {editing ? (
               <div style={{ padding: '8px 16px' }}>
                 <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>English</label>
                 <Input
-                  value={editData.english}
-                  onChange={(e) => setEditData({ ...editData, english: e.target.value })}
+                  value={editData.target_text}
+                  onChange={(e) => setEditData({ ...editData, target_text: e.target.value })}
                 />
                 <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', margin: '12px 0 4px' }}>Example (Korean)</label>
                 <Input
-                  value={editData.example_kr}
-                  onChange={(e) => setEditData({ ...editData, example_kr: e.target.value })}
+                  value={editData.example_source}
+                  onChange={(e) => setEditData({ ...editData, example_source: e.target.value })}
                 />
                 <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', margin: '12px 0 4px' }}>Example (English)</label>
                 <Input
-                  value={editData.example_en}
-                  onChange={(e) => setEditData({ ...editData, example_en: e.target.value })}
+                  value={editData.example_target}
+                  onChange={(e) => setEditData({ ...editData, example_target: e.target.value })}
                 />
                 <div style={{ marginTop: '12px' }}>
                   <Button size="s" onClick={() => setEditing(false)}>Done Editing</Button>
@@ -205,9 +205,9 @@ export default function AddCardPage() {
               </div>
             ) : (
               <>
-                <Cell subtitle="English">{editData.english}</Cell>
-                <Cell subtitle="Example (Korean)">{editData.example_kr}</Cell>
-                <Cell subtitle="Example (English)">{editData.example_en}</Cell>
+                <Cell subtitle="English">{editData.target_text}</Cell>
+                <Cell subtitle="Example (Korean)">{editData.example_source}</Cell>
+                <Cell subtitle="Example (English)">{editData.example_target}</Cell>
               </>
             )}
           </Section>

@@ -56,7 +56,7 @@ export const api = {
   getCard: (id: number) =>
     request<Flashcard>(`/api/cards/${id}`),
 
-  updateCard: (id: number, data: { english?: string; example_kr?: string; example_en?: string }) =>
+  updateCard: (id: number, data: { target_text?: string; example_source?: string; example_target?: string }) =>
     request<Flashcard>(`/api/cards/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

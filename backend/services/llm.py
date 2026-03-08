@@ -24,7 +24,7 @@ SYSTEM_PROMPT = """You are a Korean language expert. Given a Korean word, phrase
    Use polite/존댓말 form (e.g. ~요/~습니다 endings) for example sentences.
 
 Respond with ONLY a raw JSON object, no markdown, no code fences, no explanation:
-{"korean": "...", "english": "...", "example_kr": "...", "example_en": "..."}
+{"source_text": "...", "target_text": "...", "example_source": "...", "example_target": "..."}
 
 If the word is not a valid Korean word, respond with "Invalid word"."""
 
@@ -58,10 +58,10 @@ def _extract_json(text: str) -> dict:
 class TranslationResult(BaseModel):
     """Structured output from LLM translation."""
 
-    korean: str
-    english: str
-    example_kr: str
-    example_en: str
+    source_text: str
+    target_text: str
+    example_source: str
+    example_target: str
 
 
 class LLMProvider(ABC):

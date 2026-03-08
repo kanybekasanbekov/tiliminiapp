@@ -16,16 +16,17 @@ class TranslateRequest(BaseModel):
 
 
 class CardCreateRequest(BaseModel):
-    korean: str
-    english: str
-    example_kr: str | None = None
-    example_en: str | None = None
+    source_text: str
+    target_text: str
+    example_source: str | None = None
+    example_target: str | None = None
+    language_pair: str = "ko-en"
 
 
 class CardUpdateRequest(BaseModel):
-    english: str | None = None
-    example_kr: str | None = None
-    example_en: str | None = None
+    target_text: str | None = None
+    example_source: str | None = None
+    example_target: str | None = None
 
 
 @router.post("/translate")
@@ -56,11 +57,11 @@ async def create_card(
     user_id = user["id"]
 
     # Check for duplicate
-    if await models.check_duplicate(db, user_id, body.korean):
+    if await models.check_duplicate(db, user_id, body.source_text, body.language_pair):
         raise HTTPException(status_code=400, detail="You already have a card for this word")
 
     card_id = await models.add_flashcard(
-        db, user_id, body.korean, body.english, body.example_kr, body.example_en
+        db, user_id, body.source_text, body.target_text, body.example_source, body.example_target, body.language_pair
     )
     card = await models.get_flashcard_by_id(db, card_id, user_id)
     return card
@@ -114,7 +115,7 @@ async def update_card(
     """Update a flashcard's editable fields."""
     db = request.app.state.db
     card = await models.update_flashcard(
-        db, card_id, user["id"], body.english, body.example_kr, body.example_en
+        db, card_id, user["id"], body.target_text, body.example_source, body.example_target
     )
     if not card:
         raise HTTPException(status_code=404, detail="Card not found")

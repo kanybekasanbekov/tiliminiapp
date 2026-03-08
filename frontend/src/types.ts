@@ -1,10 +1,11 @@
 export interface Flashcard {
   id: number
   user_id: number
-  korean: string
-  english: string
-  example_kr: string | null
-  example_en: string | null
+  source_text: string
+  target_text: string
+  example_source: string | null
+  example_target: string | null
+  language_pair: string
   created_at: string
   next_review: string
   ease_factor: number
@@ -13,10 +14,10 @@ export interface Flashcard {
 }
 
 export interface TranslationResult {
-  korean: string
-  english: string
-  example_kr: string
-  example_en: string
+  source_text: string
+  target_text: string
+  example_source: string
+  example_target: string
 }
 
 export interface PaginatedCards {

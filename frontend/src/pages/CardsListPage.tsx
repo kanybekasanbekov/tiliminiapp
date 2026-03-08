@@ -19,7 +19,7 @@ export default function CardsListPage() {
 
   // Edit modal state
   const [editingCard, setEditingCard] = useState<Flashcard | null>(null)
-  const [editForm, setEditForm] = useState({ english: '', example_kr: '', example_en: '' })
+  const [editForm, setEditForm] = useState({ target_text: '', example_source: '', example_target: '' })
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
@@ -48,7 +48,7 @@ export default function CardsListPage() {
 
   const handleDelete = async (card: Flashcard) => {
     WebApp.showConfirm(
-      `Delete "${card.korean}"?`,
+      `Delete "${card.source_text}"?`,
       async (confirmed) => {
         if (!confirmed) return
         try {
@@ -64,9 +64,9 @@ export default function CardsListPage() {
 
   const openEdit = (card: Flashcard) => {
     setEditForm({
-      english: card.english,
-      example_kr: card.example_kr || '',
-      example_en: card.example_en || '',
+      target_text: card.target_text,
+      example_source: card.example_source || '',
+      example_target: card.example_target || '',
     })
     setEditError('')
     setEditingCard(card)
@@ -123,14 +123,14 @@ export default function CardsListPage() {
           <div key={card.id}>
             <Cell
               onClick={() => setExpandedId(expandedId === card.id ? null : card.id)}
-              subtitle={card.english}
+              subtitle={card.target_text}
               after={
                 <span style={{ fontSize: '11px', color: 'var(--tg-hint-color)' }}>
                   {new Date(card.next_review).toLocaleDateString()}
                 </span>
               }
             >
-              {card.korean}
+              {card.source_text}
             </Cell>
             {expandedId === card.id && (
               <div style={{
@@ -138,13 +138,13 @@ export default function CardsListPage() {
                 backgroundColor: 'var(--tg-secondary-bg-color)',
                 fontSize: '14px',
               }}>
-                {card.example_kr && (
+                {card.example_source && (
                   <div style={{ marginBottom: '8px' }}>
                     <div style={{ color: 'var(--tg-hint-color)', fontSize: '12px', marginBottom: '2px' }}>Example</div>
-                    <div>{card.example_kr}</div>
-                    {card.example_en && (
+                    <div>{card.example_source}</div>
+                    {card.example_target && (
                       <div style={{ color: 'var(--tg-hint-color)', fontStyle: 'italic', marginTop: '2px' }}>
-                        {card.example_en}
+                        {card.example_target}
                       </div>
                     )}
                   </div>
@@ -250,7 +250,7 @@ export default function CardsListPage() {
           >
             <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>Edit Card</h2>
             <p style={{ fontSize: '16px', color: 'var(--tg-hint-color)', marginBottom: '20px' }}>
-              {editingCard.korean}
+              {editingCard.source_text}
             </p>
 
             {editError && (
@@ -271,8 +271,8 @@ export default function CardsListPage() {
                 English
               </label>
               <Input
-                value={editForm.english}
-                onChange={(e) => setEditForm({ ...editForm, english: e.target.value })}
+                value={editForm.target_text}
+                onChange={(e) => setEditForm({ ...editForm, target_text: e.target.value })}
               />
             </div>
             <div style={{ marginBottom: '12px' }}>
@@ -280,8 +280,8 @@ export default function CardsListPage() {
                 Example (Korean)
               </label>
               <Input
-                value={editForm.example_kr}
-                onChange={(e) => setEditForm({ ...editForm, example_kr: e.target.value })}
+                value={editForm.example_source}
+                onChange={(e) => setEditForm({ ...editForm, example_source: e.target.value })}
               />
             </div>
             <div style={{ marginBottom: '20px' }}>
@@ -289,8 +289,8 @@ export default function CardsListPage() {
                 Example (English)
               </label>
               <Input
-                value={editForm.example_en}
-                onChange={(e) => setEditForm({ ...editForm, example_en: e.target.value })}
+                value={editForm.example_target}
+                onChange={(e) => setEditForm({ ...editForm, example_target: e.target.value })}
               />
             </div>
 
@@ -335,7 +335,7 @@ export default function CardsListPage() {
           <div onClick={(e) => e.stopPropagation()} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
               <div style={{ width: '100%' }}>
-                <FlashCard card={viewingCard} showSide="korean" revealed={viewRevealed} />
+                <FlashCard card={viewingCard} showSide="source" revealed={viewRevealed} />
               </div>
             </div>
             <div style={{ paddingTop: '16px' }}>

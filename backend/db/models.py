@@ -8,18 +8,19 @@ import aiosqlite
 async def add_flashcard(
     conn: aiosqlite.Connection,
     user_id: int,
-    korean: str,
-    english: str,
-    example_kr: str | None = None,
-    example_en: str | None = None,
+    source_text: str,
+    target_text: str,
+    example_source: str | None = None,
+    example_target: str | None = None,
+    language_pair: str = "ko-en",
 ) -> int:
     """Insert a new flashcard. Returns the new row id."""
     cursor = await conn.execute(
         """
-        INSERT INTO flashcards (user_id, korean, english, example_kr, example_en)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO flashcards (user_id, source_text, target_text, example_source, example_target, language_pair)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (user_id, korean, english, example_kr, example_en),
+        (user_id, source_text, target_text, example_source, example_target, language_pair),
     )
     await conn.commit()
     return cursor.lastrowid  # type: ignore[return-value]
@@ -89,22 +90,22 @@ async def update_flashcard(
     conn: aiosqlite.Connection,
     flashcard_id: int,
     user_id: int,
-    english: str | None = None,
-    example_kr: str | None = None,
-    example_en: str | None = None,
+    target_text: str | None = None,
+    example_source: str | None = None,
+    example_target: str | None = None,
 ) -> dict | None:
     """Update editable fields of a flashcard. Returns updated card or None."""
     updates = []
     params = []
-    if english is not None:
-        updates.append("english = ?")
-        params.append(english)
-    if example_kr is not None:
-        updates.append("example_kr = ?")
-        params.append(example_kr)
-    if example_en is not None:
-        updates.append("example_en = ?")
-        params.append(example_en)
+    if target_text is not None:
+        updates.append("target_text = ?")
+        params.append(target_text)
+    if example_source is not None:
+        updates.append("example_source = ?")
+        params.append(example_source)
+    if example_target is not None:
+        updates.append("example_target = ?")
+        params.append(example_target)
 
     if not updates:
         return await get_flashcard_by_id(conn, flashcard_id, user_id)
@@ -204,11 +205,12 @@ async def get_user_stats(
 async def check_duplicate(
     conn: aiosqlite.Connection,
     user_id: int,
-    korean: str,
+    source_text: str,
+    language_pair: str = "ko-en",
 ) -> bool:
-    """Check if user already has a card with this Korean word."""
+    """Check if user already has a card with this source text for the given language pair."""
     cursor = await conn.execute(
-        "SELECT 1 FROM flashcards WHERE user_id = ? AND korean = ?",
-        (user_id, korean),
+        "SELECT 1 FROM flashcards WHERE user_id = ? AND source_text = ? AND language_pair = ?",
+        (user_id, source_text, language_pair),
     )
     return await cursor.fetchone() is not None
