@@ -7,6 +7,7 @@ import type { TranslationResult, Deck } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ExplainButton from '../components/ExplainButton'
 import { getLanguageNames } from '../utils/languages'
+import { useTranslation } from '../i18n'
 
 const SESSION_KEY = 'addcard_draft'
 const SESSION_MAX_AGE = 30 * 60 * 1000 // 30 minutes
@@ -43,7 +44,8 @@ function clearDraft() {
 }
 
 export default function AddCardPage() {
-  const { activeLanguagePair } = useApp()
+  const { activeLanguagePair, appLanguage } = useApp()
+  const { t } = useTranslation()
   const [word, setWord] = useState('')
   const [translation, setTranslation] = useState<TranslationResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -132,7 +134,7 @@ export default function AddCardPage() {
       setEditing(false)
       clearDraft()
       setSavedCardId(card.id)
-      setSuccessMessage(`"${savedWord}" saved!`)
+      setSuccessMessage(t('add.saved', { word: savedWord }))
     } catch (e: any) {
       setError(e.message || 'Failed to save')
       WebApp.HapticFeedback.notificationOccurred('error')
@@ -141,14 +143,14 @@ export default function AddCardPage() {
     }
   }
 
-  const lang = getLanguageNames(activeLanguagePair)
+  const lang = getLanguageNames(activeLanguagePair, appLanguage)
 
   return (
     <div className="page">
       <div style={{ padding: '24px 16px 16px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Add Card</h1>
+        <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{t('add.title')}</h1>
         <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '14px' }}>
-          {`Enter a word in ${lang.source} or ${lang.target}`}
+          {t('add.enterWord', { source: lang.source, target: lang.target, sourcePrep: lang.sourcePrep, targetPrep: lang.targetPrep })}
         </p>
       </div>
 
@@ -176,7 +178,7 @@ export default function AddCardPage() {
           <Input
             value={word}
             onChange={(e) => setWord(e.target.value)}
-            placeholder={`${lang.source} or ${lang.target} word`}
+            placeholder={t('add.placeholder', { source: lang.source, target: lang.target, sourcePrep: lang.sourcePrep, targetPrep: lang.targetPrep })}
             onKeyDown={(e) => e.key === 'Enter' && handleTranslate()}
             disabled={loading}
           />
@@ -188,12 +190,12 @@ export default function AddCardPage() {
             onClick={handleTranslate}
             disabled={!word.trim() || loading}
           >
-            {loading ? 'Translating...' : 'Translate'}
+            {loading ? t('add.translating') : t('add.translate')}
           </Button>
         </div>
       </Section>
 
-      {loading && <LoadingSpinner text="Getting AI translation..." />}
+      {loading && <LoadingSpinner text={t('add.gettingTranslation')} />}
 
       {error && (
         <div style={{
@@ -210,7 +212,7 @@ export default function AddCardPage() {
 
       {translation && editData && (
         <>
-          <Section header="Translation Result">
+          <Section header={t('add.translationResult')}>
             <Cell subtitle={lang.source}>
               <span style={{ fontSize: '18px' }}>{editData.source_text}</span>
             </Cell>
@@ -221,31 +223,31 @@ export default function AddCardPage() {
                   value={editData.target_text}
                   onChange={(e) => setEditData({ ...editData, target_text: e.target.value })}
                 />
-                <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', margin: '12px 0 4px' }}>{`Example (${lang.source})`}</label>
+                <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', margin: '12px 0 4px' }}>{`${t('flashcard.example')} (${lang.source})`}</label>
                 <Input
                   value={editData.example_source}
                   onChange={(e) => setEditData({ ...editData, example_source: e.target.value })}
                 />
-                <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', margin: '12px 0 4px' }}>{`Example (${lang.target})`}</label>
+                <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', margin: '12px 0 4px' }}>{`${t('flashcard.example')} (${lang.target})`}</label>
                 <Input
                   value={editData.example_target}
                   onChange={(e) => setEditData({ ...editData, example_target: e.target.value })}
                 />
                 <div style={{ marginTop: '12px' }}>
-                  <Button size="s" onClick={() => setEditing(false)}>Done Editing</Button>
+                  <Button size="s" onClick={() => setEditing(false)}>{t('add.doneEditing')}</Button>
                 </div>
               </div>
             ) : (
               <>
                 <Cell subtitle={lang.target}>{editData.target_text}</Cell>
-                <Cell subtitle={`Example (${lang.source})`}>{editData.example_source}</Cell>
-                <Cell subtitle={`Example (${lang.target})`}>{editData.example_target}</Cell>
+                <Cell subtitle={`${t('flashcard.example')} (${lang.source})`}>{editData.example_source}</Cell>
+                <Cell subtitle={`${t('flashcard.example')} (${lang.target})`}>{editData.example_target}</Cell>
               </>
             )}
           </Section>
 
           {decks.length > 1 && (
-            <Section header="Save to Deck">
+            <Section header={t('add.saveToDeck')}>
               <div style={{ padding: '8px 16px 12px' }}>
                 <select
                   value={selectedDeckId ?? ''}
@@ -263,7 +265,7 @@ export default function AddCardPage() {
                 >
                   {decks.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name}{d.is_default ? ' (default)' : ''}
+                      {d.name}{d.is_default ? ` ${t('add.default')}` : ''}
                     </option>
                   ))}
                 </select>
@@ -279,7 +281,7 @@ export default function AddCardPage() {
                 stretched
                 onClick={() => setEditing(true)}
               >
-                Edit
+                {t('add.edit')}
               </Button>
             )}
             <Button
@@ -288,7 +290,7 @@ export default function AddCardPage() {
               onClick={handleSave}
               disabled={saving}
             >
-              {saving ? 'Saving...' : 'Save Card'}
+              {saving ? t('add.saving') : t('add.saveCard')}
             </Button>
           </div>
         </>

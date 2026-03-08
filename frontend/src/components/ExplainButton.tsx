@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api'
+import { useTranslation } from '../i18n'
 
 interface ExplainButtonProps {
   cardId: number
@@ -49,6 +50,7 @@ function renderMarkdown(text: string) {
 }
 
 export default function ExplainButton({ cardId }: ExplainButtonProps) {
+  const { t } = useTranslation()
   const [state, setState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
   const [explanation, setExplanation] = useState('')
   const [error, setError] = useState('')
@@ -84,11 +86,10 @@ export default function ExplainButton({ cardId }: ExplainButtonProps) {
   const isLoadedHidden = state === 'loaded' && !visible
 
   const getButtonLabel = () => {
-    if (isLoading) return 'Generating...'
-    if (isLoadedVisible) return 'Hide Explanation'
-    if (isLoadedHidden) return 'Show Explanation'
-    if (state === 'error') return 'AI Explain'
-    return 'AI Explain'
+    if (isLoading) return t('explain.generating')
+    if (isLoadedVisible) return t('explain.hide')
+    if (isLoadedHidden) return t('explain.show')
+    return t('explain.aiExplain')
   }
 
   const getButtonStyle = (): React.CSSProperties => {
@@ -192,7 +193,7 @@ export default function ExplainButton({ cardId }: ExplainButtonProps) {
             borderBottom: '1px solid rgba(139, 92, 246, 0.15)',
           }}>
             <SparkleIcon size={12} />
-            AI Explanation
+            {t('explain.aiExplanation')}
           </div>
           <div style={{
             padding: '10px 14px',

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
+import type { AppLanguage } from '../i18n'
 
 interface AppContextType {
   user: {
@@ -17,6 +18,8 @@ interface AppContextType {
   languagePairVersion: number
   langSwitchMessage: string
   setLangSwitchMessage: (msg: string) => void
+  appLanguage: AppLanguage
+  setAppLanguage: (lang: AppLanguage) => void
 }
 
 const AppContext = createContext<AppContextType>({
@@ -29,6 +32,8 @@ const AppContext = createContext<AppContextType>({
   languagePairVersion: 0,
   langSwitchMessage: '',
   setLangSwitchMessage: () => {},
+  appLanguage: 'en',
+  setAppLanguage: () => {},
 })
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -36,6 +41,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeLanguagePair, setActiveLanguagePairRaw] = useState('ko-en')
   const [languagePairVersion, setLanguagePairVersion] = useState(0)
   const [langSwitchMessage, setLangSwitchMessage] = useState('')
+  const [appLanguage, setAppLanguageRaw] = useState<AppLanguage>(
+    () => (localStorage.getItem('appLanguage') as AppLanguage) || 'en'
+  )
+
+  const setAppLanguage = (lang: AppLanguage) => {
+    setAppLanguageRaw(lang)
+    localStorage.setItem('appLanguage', lang)
+  }
 
   const setActiveLanguagePair = (pair: string) => {
     setActiveLanguagePairRaw(pair)
@@ -71,7 +84,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AppContext.Provider value={{ user, colorScheme, dueCount, setDueCount, activeLanguagePair, setActiveLanguagePair, languagePairVersion, langSwitchMessage, setLangSwitchMessage }}>
+    <AppContext.Provider value={{ user, colorScheme, dueCount, setDueCount, activeLanguagePair, setActiveLanguagePair, languagePairVersion, langSwitchMessage, setLangSwitchMessage, appLanguage, setAppLanguage }}>
       {children}
     </AppContext.Provider>
   )

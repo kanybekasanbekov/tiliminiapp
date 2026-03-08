@@ -4,9 +4,11 @@ import { useApp } from '../contexts/AppContext'
 import { api } from '../api'
 import type { UserStats } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { useTranslation } from '../i18n'
 
 export default function StatsPage() {
   const { activeLanguagePair, languagePairVersion } = useApp()
+  const { t } = useTranslation()
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -18,15 +20,15 @@ export default function StatsPage() {
       .finally(() => setLoading(false))
   }, [activeLanguagePair, languagePairVersion])
 
-  if (loading) return <LoadingSpinner text="Loading stats..." />
+  if (loading) return <LoadingSpinner text={t('stats.loading')} />
 
   if (!stats) {
     return (
       <div className="page">
         <div style={{ padding: '24px 16px' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Statistics</h1>
+          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{t('stats.title')}</h1>
           <p style={{ color: 'var(--tg-hint-color)', marginTop: '8px' }}>
-            Unable to load statistics.
+            {t('stats.unableToLoad')}
           </p>
         </div>
       </div>
@@ -37,16 +39,16 @@ export default function StatsPage() {
   const maxVal = Math.max(dist.new, dist.learning, dist.young, dist.mature, 1)
 
   const bars: { label: string; value: number; color: string; sublabel: string }[] = [
-    { label: 'New', value: dist.new, color: '#007aff', sublabel: '0 days' },
-    { label: 'Learning', value: dist.learning, color: '#ff9500', sublabel: '1-6 days' },
-    { label: 'Young', value: dist.young, color: '#34c759', sublabel: '7-30 days' },
-    { label: 'Mature', value: dist.mature, color: '#5856d6', sublabel: '30+ days' },
+    { label: t('stats.new'), value: dist.new, color: '#007aff', sublabel: t('stats.newSub') },
+    { label: t('stats.learning'), value: dist.learning, color: '#ff9500', sublabel: t('stats.learningSub') },
+    { label: t('stats.young'), value: dist.young, color: '#34c759', sublabel: t('stats.youngSub') },
+    { label: t('stats.mature'), value: dist.mature, color: '#5856d6', sublabel: t('stats.matureSub') },
   ]
 
   return (
     <div className="page">
       <div style={{ padding: '24px 16px 16px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Statistics</h1>
+        <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{t('stats.title')}</h1>
       </div>
 
       <div style={{
@@ -62,7 +64,7 @@ export default function StatsPage() {
           textAlign: 'center',
         }}>
           <div style={{ fontSize: '32px', fontWeight: 700 }}>{stats.total}</div>
-          <div style={{ fontSize: '13px', color: 'var(--tg-hint-color)', marginTop: '4px' }}>Total Cards</div>
+          <div style={{ fontSize: '13px', color: 'var(--tg-hint-color)', marginTop: '4px' }}>{t('stats.totalCards')}</div>
         </div>
         <div style={{
           flex: 1,
@@ -74,7 +76,7 @@ export default function StatsPage() {
         }}>
           <div style={{ fontSize: '32px', fontWeight: 700 }}>{stats.due}</div>
           <div style={{ fontSize: '13px', opacity: stats.due > 0 ? 0.9 : undefined, color: stats.due > 0 ? undefined : 'var(--tg-hint-color)', marginTop: '4px' }}>
-            Due Today
+            {t('stats.dueToday')}
           </div>
         </div>
         <div style={{
@@ -89,18 +91,18 @@ export default function StatsPage() {
             {stats.current_streak > 0 ? '🔥' : ''} {stats.current_streak}
           </div>
           <div style={{ fontSize: '13px', opacity: stats.current_streak > 0 ? 0.9 : undefined, color: stats.current_streak > 0 ? undefined : 'var(--tg-hint-color)', marginTop: '4px' }}>
-            Day Streak
+            {t('stats.dayStreak')}
           </div>
         </div>
       </div>
 
       {stats.longest_streak > 0 && (
         <div style={{ padding: '0 16px 8px', fontSize: '13px', color: 'var(--tg-hint-color)', textAlign: 'center' }}>
-          Longest streak: {stats.longest_streak} days
+          {t('stats.longestStreak', { count: stats.longest_streak })}
         </div>
       )}
 
-      <Section header="Interval Distribution">
+      <Section header={t('stats.intervalDist')}>
         <div style={{ padding: '16px' }}>
           {bars.map(({ label, value, color, sublabel }) => (
             <div key={label} style={{ marginBottom: '16px' }}>
@@ -135,10 +137,10 @@ export default function StatsPage() {
         </div>
       </Section>
 
-      <Section header="SRS Overview">
-        <Cell subtitle="Spaced Repetition System">Algorithm: SM-2 (Anki)</Cell>
-        <Cell subtitle="Easy = 5, Medium = 3, Hard = 1">Difficulty Ratings</Cell>
-        <Cell subtitle="Reviews increase intervals exponentially">Learning Curve</Cell>
+      <Section header={t('stats.srsOverview')}>
+        <Cell subtitle={t('stats.srs')}>{t('stats.srsAlgorithm')}</Cell>
+        <Cell subtitle={t('stats.difficultyValues')}>{t('stats.difficultyRatings')}</Cell>
+        <Cell subtitle={t('stats.learningCurveSub')}>{t('stats.learningCurve')}</Cell>
       </Section>
     </div>
   )

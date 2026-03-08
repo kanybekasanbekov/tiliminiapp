@@ -1,5 +1,7 @@
 import type { Flashcard } from '../types'
 import { getLanguageNames } from '../utils/languages'
+import { useTranslation } from '../i18n'
+import { useApp } from '../contexts/AppContext'
 
 interface FlashCardProps {
   card: Flashcard
@@ -8,12 +10,14 @@ interface FlashCardProps {
 }
 
 export default function FlashCard({ card, showSide, revealed }: FlashCardProps) {
-  const lang = getLanguageNames(card.language_pair)
+  const { appLanguage } = useApp()
+  const { t } = useTranslation()
+  const lang = getLanguageNames(card.language_pair, appLanguage)
   const question = showSide === 'source' ? card.source_text : card.target_text
   const questionLabel = showSide === 'source' ? lang.source : lang.target
   const prompt = showSide === 'source'
-    ? `What does this mean in ${lang.target}?`
-    : `How do you say this in ${lang.source}?`
+    ? t('flashcard.whatDoesThisMean', { lang: lang.target, langPrep: lang.targetPrep })
+    : t('flashcard.whatDoesThisMean', { lang: lang.source, langPrep: lang.sourcePrep })
 
   return (
     <div style={{
@@ -100,7 +104,7 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
                   textTransform: 'uppercase',
                   letterSpacing: '1px',
                 }}>
-                  Example
+                  {t('flashcard.example')}
                 </span>
                 <div style={{ fontSize: '16px', marginTop: '4px', lineHeight: 1.5 }}>
                   {card.example_source}

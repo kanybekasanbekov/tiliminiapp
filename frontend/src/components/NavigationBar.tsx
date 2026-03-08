@@ -1,18 +1,20 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
+import { useTranslation } from '../i18n'
 
 const tabs = [
-  { path: '/', label: 'Home', icon: '🏠' },
-  { path: '/add', label: 'Add', icon: '➕' },
-  { path: '/practice', label: 'Practice', icon: '📖' },
-  { path: '/decks', label: 'Decks', icon: '🗂' },
-  { path: '/stats', label: 'Stats', icon: '📊' },
+  { path: '/', labelKey: 'nav.home', icon: '🏠' },
+  { path: '/add', labelKey: 'nav.add', icon: '➕' },
+  { path: '/practice', labelKey: 'nav.practice', icon: '📖' },
+  { path: '/decks', labelKey: 'nav.decks', icon: '🗂' },
+  { path: '/stats', labelKey: 'nav.stats', icon: '📊' },
 ]
 
 export default function NavigationBar() {
   const location = useLocation()
   const navigate = useNavigate()
   const { dueCount } = useApp()
+  const { t } = useTranslation()
 
   return (
     <nav style={{
@@ -56,7 +58,7 @@ export default function NavigationBar() {
               color: isActive ? 'var(--tg-button-color)' : 'var(--tg-hint-color)',
               fontWeight: isActive ? 600 : 400,
             }}>
-              {tab.label}
+              {t(tab.labelKey)}
             </span>
             {tab.path === '/practice' && dueCount > 0 && (
               <span style={{

@@ -10,10 +10,12 @@ import ExplainButton from '../components/ExplainButton'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
 import { getLanguageNames } from '../utils/languages'
+import { useTranslation } from '../i18n'
 
 export default function CardsListPage() {
   const navigate = useNavigate()
-  const { activeLanguagePair, languagePairVersion } = useApp()
+  const { activeLanguagePair, languagePairVersion, appLanguage } = useApp()
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialDeckParam = useRef(searchParams.get('deck'))
 
@@ -54,7 +56,7 @@ export default function CardsListPage() {
   const [viewingCard, setViewingCard] = useState<Flashcard | null>(null)
   const [viewRevealed, setViewRevealed] = useState(false)
 
-  const editLang = editingCard ? getLanguageNames(editingCard.language_pair) : { source: '', target: '' }
+  const editLang = editingCard ? getLanguageNames(editingCard.language_pair, appLanguage) : { source: '', target: '' }
 
   // Clear URL param on mount if present
   useEffect(() => {
@@ -151,7 +153,7 @@ export default function CardsListPage() {
     if (deck.is_default) return
     setActionDeckId(null)
     WebApp.showConfirm(
-      `Delete "${deck.name}"? Cards will be moved to the default deck.`,
+      t('cards.confirmDeleteDeck', { name: deck.name }),
       async (confirmed) => {
         if (!confirmed) return
         try {
@@ -171,7 +173,7 @@ export default function CardsListPage() {
 
   const handleDelete = async (card: Flashcard) => {
     WebApp.showConfirm(
-      `Delete "${card.source_text}"?`,
+      t('cards.confirmDeleteCard', { name: card.source_text }),
       async (confirmed) => {
         if (!confirmed) return
         try {
@@ -218,16 +220,16 @@ export default function CardsListPage() {
     setViewingCard(card)
   }
 
-  if (loading && cards.length === 0 && decksLoading) return <LoadingSpinner text="Loading cards..." />
+  if (loading && cards.length === 0 && decksLoading) return <LoadingSpinner text={t('cards.loading')} />
 
   return (
     <div className="page">
       <div style={{ padding: '24px 16px 8px' }}>
         <h1 style={{ fontSize: '24px', fontWeight: 700 }}>
-          {selectedDeck ? selectedDeck.name : 'My Cards'}
+          {selectedDeck ? selectedDeck.name : t('cards.myCards')}
         </h1>
         <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '14px' }}>
-          {total} card{total !== 1 ? 's' : ''}{selectedDeckId != null ? ' in this deck' : ' total'}
+          {t('cards.cardCount', { count: total, s: total !== 1 ? 's' : '' })}{selectedDeckId != null ? t('cards.inThisDeck') : t('cards.total')}
         </p>
       </div>
 
@@ -258,7 +260,7 @@ export default function CardsListPage() {
             color: selectedDeckId == null ? 'var(--tg-button-text-color)' : 'var(--tg-text-color)',
           }}
         >
-          All ({totalCardCount})
+          {t('cards.all', { count: totalCardCount })}
         </button>
 
         {decks.map((deck) => (
@@ -298,7 +300,7 @@ export default function CardsListPage() {
             color: 'var(--tg-hint-color)',
           }}
         >
-          + New
+          {t('cards.new')}
         </button>
       </div>
 
@@ -343,7 +345,7 @@ export default function CardsListPage() {
                     setEditingDeck(deck)
                   }}
                 >
-                  Edit Name
+                  {t('cards.editName')}
                 </Button>
                 {!deck.is_default && (
                   <Button
@@ -353,7 +355,7 @@ export default function CardsListPage() {
                     onClick={() => handleDeleteDeck(deck)}
                     style={{ color: '#ff3b30' }}
                   >
-                    Delete Deck
+                    {t('cards.deleteDeck')}
                   </Button>
                 )}
                 <Button
@@ -362,7 +364,7 @@ export default function CardsListPage() {
                   stretched
                   onClick={() => setActionDeckId(null)}
                 >
-                  Cancel
+                  {t('cards.cancel')}
                 </Button>
               </div>
             </div>
@@ -375,9 +377,9 @@ export default function CardsListPage() {
         <div style={{ padding: '32px 16px' }}>
           <EmptyState
             icon="🗂"
-            title={selectedDeckId != null ? 'No Cards in This Deck' : 'No Cards Yet'}
-            description={selectedDeckId != null ? 'Add cards and assign them to this deck.' : 'Add your first flashcard to get started!'}
-            action={{ label: 'Add Card', onClick: () => navigate('/add') }}
+            title={selectedDeckId != null ? t('cards.noCardsInDeck') : t('cards.noCardsYet')}
+            description={selectedDeckId != null ? t('cards.noCardsInDeckSub') : t('cards.noCardsYetSub')}
+            action={{ label: t('cards.addCard'), onClick: () => navigate('/add') }}
           />
         </div>
       ) : (
@@ -403,7 +405,7 @@ export default function CardsListPage() {
                 }}>
                   {card.example_source && (
                     <div style={{ marginBottom: '8px' }}>
-                      <div style={{ color: 'var(--tg-hint-color)', fontSize: '12px', marginBottom: '2px' }}>Example</div>
+                      <div style={{ color: 'var(--tg-hint-color)', fontSize: '12px', marginBottom: '2px' }}>{t('cards.example')}</div>
                       <div>{card.example_source}</div>
                       {card.example_target && (
                         <div style={{ color: 'var(--tg-hint-color)', fontStyle: 'italic', marginTop: '2px' }}>
@@ -413,9 +415,9 @@ export default function CardsListPage() {
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--tg-hint-color)', marginBottom: '12px' }}>
-                    <span>Ease: {card.ease_factor.toFixed(2)}</span>
-                    <span>Interval: {card.interval_days}d</span>
-                    <span>Reps: {card.repetitions}</span>
+                    <span>{t('cards.ease')} {card.ease_factor.toFixed(2)}</span>
+                    <span>{t('cards.interval')} {card.interval_days}d</span>
+                    <span>{t('cards.reps')} {card.repetitions}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <Button
@@ -426,7 +428,7 @@ export default function CardsListPage() {
                         openView(card)
                       }}
                     >
-                      View
+                      {t('cards.view')}
                     </Button>
                     <Button
                       size="s"
@@ -436,7 +438,7 @@ export default function CardsListPage() {
                         openEdit(card)
                       }}
                     >
-                      Edit
+                      {t('cards.edit')}
                     </Button>
                     <Button
                       size="s"
@@ -447,7 +449,7 @@ export default function CardsListPage() {
                       }}
                       style={{ color: '#ff3b30' }}
                     >
-                      Delete
+                      {t('cards.delete')}
                     </Button>
                   </div>
                   <div style={{ marginTop: '10px' }}>
@@ -474,7 +476,7 @@ export default function CardsListPage() {
             disabled={page <= 1}
             onClick={() => loadCards(page - 1, selectedDeckId)}
           >
-            Previous
+            {t('cards.previous')}
           </Button>
           <span style={{ fontSize: '14px', color: 'var(--tg-hint-color)' }}>
             {page} / {totalPages}
@@ -485,7 +487,7 @@ export default function CardsListPage() {
             disabled={page >= totalPages}
             onClick={() => loadCards(page + 1, selectedDeckId)}
           >
-            Next
+            {t('cards.next')}
           </Button>
         </div>
       )}
@@ -515,15 +517,15 @@ export default function CardsListPage() {
               maxWidth: '400px',
             }}
           >
-            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>New Deck</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>{t('cards.newDeck')}</h2>
             <div style={{ marginBottom: '20px' }}>
               <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
-                Deck Name
+                {t('cards.deckName')}
               </label>
               <Input
                 value={createName}
                 onChange={(e) => setCreateName(e.target.value)}
-                placeholder="e.g. TOPIK Vocab"
+                placeholder={t('cards.deckPlaceholder')}
               />
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -534,7 +536,7 @@ export default function CardsListPage() {
                 onClick={() => setShowCreateModal(false)}
                 disabled={createSaving}
               >
-                Cancel
+                {t('cards.cancel')}
               </Button>
               <Button
                 size="l"
@@ -542,7 +544,7 @@ export default function CardsListPage() {
                 onClick={handleCreateDeck}
                 disabled={createSaving || !createName.trim()}
               >
-                {createSaving ? 'Creating...' : 'Create'}
+                {createSaving ? t('cards.creating') : t('cards.create')}
               </Button>
             </div>
           </div>
@@ -574,10 +576,10 @@ export default function CardsListPage() {
               maxWidth: '400px',
             }}
           >
-            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>Edit Deck</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>{t('cards.editDeck')}</h2>
             <div style={{ marginBottom: '20px' }}>
               <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
-                Deck Name
+                {t('cards.deckName')}
               </label>
               <Input
                 value={editDeckName}
@@ -592,7 +594,7 @@ export default function CardsListPage() {
                 onClick={() => setEditingDeck(null)}
                 disabled={editDeckSaving}
               >
-                Cancel
+                {t('cards.cancel')}
               </Button>
               <Button
                 size="l"
@@ -600,7 +602,7 @@ export default function CardsListPage() {
                 onClick={handleEditDeck}
                 disabled={editDeckSaving || !editDeckName.trim()}
               >
-                {editDeckSaving ? 'Saving...' : 'Save'}
+                {editDeckSaving ? t('cards.saving') : t('cards.save')}
               </Button>
             </div>
           </div>
@@ -632,7 +634,7 @@ export default function CardsListPage() {
               maxWidth: '400px',
             }}
           >
-            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>Edit Card</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>{t('cards.editCard')}</h2>
             <p style={{ fontSize: '16px', color: 'var(--tg-hint-color)', marginBottom: '20px' }}>
               {editingCard.source_text}
             </p>
@@ -661,7 +663,7 @@ export default function CardsListPage() {
             </div>
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
-                {`Example (${editLang.source})`}
+                {`${t('cards.example')} (${editLang.source})`}
               </label>
               <Input
                 value={editForm.example_source}
@@ -670,7 +672,7 @@ export default function CardsListPage() {
             </div>
             <div style={{ marginBottom: '20px' }}>
               <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
-                {`Example (${editLang.target})`}
+                {`${t('cards.example')} (${editLang.target})`}
               </label>
               <Input
                 value={editForm.example_target}
@@ -686,7 +688,7 @@ export default function CardsListPage() {
                 onClick={() => setEditingCard(null)}
                 disabled={editSaving}
               >
-                Cancel
+                {t('cards.cancel')}
               </Button>
               <Button
                 size="l"
@@ -694,7 +696,7 @@ export default function CardsListPage() {
                 onClick={handleEditSave}
                 disabled={editSaving}
               >
-                {editSaving ? 'Saving...' : 'Save'}
+                {editSaving ? t('cards.saving') : t('cards.save')}
               </Button>
             </div>
           </div>
@@ -729,7 +731,7 @@ export default function CardsListPage() {
                   stretched
                   onClick={() => setViewRevealed(true)}
                 >
-                  Show Answer
+                  {t('cards.showAnswer')}
                 </Button>
               ) : (
                 <>
@@ -742,7 +744,7 @@ export default function CardsListPage() {
                     mode="outline"
                     onClick={() => setViewingCard(null)}
                   >
-                    Close
+                    {t('cards.close')}
                   </Button>
                 </>
               )}

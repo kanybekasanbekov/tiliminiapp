@@ -7,10 +7,12 @@ import { useApp } from '../contexts/AppContext'
 import type { Deck } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
+import { useTranslation } from '../i18n'
 
 export default function DecksPage() {
   const navigate = useNavigate()
   const { activeLanguagePair, languagePairVersion } = useApp()
+  const { t } = useTranslation()
   const [decks, setDecks] = useState<Deck[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -63,7 +65,7 @@ export default function DecksPage() {
   const handleDelete = (deck: Deck) => {
     if (deck.is_default) return
     WebApp.showConfirm(
-      `Delete "${deck.name}"? Cards will be moved to Default.`,
+      t('decks.confirmDelete', { name: deck.name }),
       async (confirmed) => {
         if (!confirmed) return
         try {
@@ -77,16 +79,16 @@ export default function DecksPage() {
     )
   }
 
-  if (loading) return <LoadingSpinner text="Loading decks..." />
+  if (loading) return <LoadingSpinner text={t('decks.loading')} />
 
   if (!loading && decks.length === 0) {
     return (
       <div className="page">
         <EmptyState
           icon="🗂"
-          title="No Decks"
-          description="Add a card to get started — a default deck will be created automatically."
-          action={{ label: 'Add Card', onClick: () => navigate('/add') }}
+          title={t('decks.noDecks')}
+          description={t('decks.noDecksDesc')}
+          action={{ label: t('decks.addCard'), onClick: () => navigate('/add') }}
         />
       </div>
     )
@@ -97,9 +99,9 @@ export default function DecksPage() {
   return (
     <div className="page">
       <div style={{ padding: '24px 16px 8px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 700 }}>My Decks</h1>
+        <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{t('decks.myDecks')}</h1>
         <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '14px' }}>
-          {decks.length} deck{decks.length !== 1 ? 's' : ''} · {totalCards} card{totalCards !== 1 ? 's' : ''}
+          {t('decks.count', { decks: decks.length, ds: decks.length !== 1 ? 's' : '', cards: totalCards, cs: totalCards !== 1 ? 's' : '' })}
         </p>
       </div>
 
@@ -114,11 +116,11 @@ export default function DecksPage() {
           }
           before={<span style={{ fontSize: '20px' }}>📋</span>}
         >
-          All Cards
+          {t('decks.allCards')}
         </Cell>
       </Section>
 
-      <Section header="Decks">
+      <Section header={t('decks.decks')}>
         {decks.map((deck) => (
           <Cell
             key={deck.id}
@@ -143,7 +145,7 @@ export default function DecksPage() {
                       padding: '4px',
                       opacity: 0.35,
                     }}
-                    title="Set as preferred deck"
+                    title={t('decks.setPreferred')}
                   >
                     ⭐
                   </button>
@@ -181,12 +183,12 @@ export default function DecksPage() {
 
       {/* Create deck form */}
       {creating ? (
-        <Section header="New Deck">
+        <Section header={t('decks.newDeckHeader')}>
           <div style={{ padding: '8px 16px 16px' }}>
             <Input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Deck name"
+              placeholder={t('decks.deckName')}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             />
             <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
@@ -197,7 +199,7 @@ export default function DecksPage() {
                 onClick={() => { setCreating(false); setNewName('') }}
                 disabled={saving}
               >
-                Cancel
+                {t('decks.cancel')}
               </Button>
               <Button
                 size="s"
@@ -205,7 +207,7 @@ export default function DecksPage() {
                 onClick={handleCreate}
                 disabled={!newName.trim() || saving}
               >
-                {saving ? 'Creating...' : 'Create'}
+                {saving ? t('decks.creating') : t('decks.create')}
               </Button>
             </div>
           </div>
@@ -218,7 +220,7 @@ export default function DecksPage() {
             stretched
             onClick={() => setCreating(true)}
           >
-            + New Deck
+            {t('decks.newDeck')}
           </Button>
         </div>
       )}

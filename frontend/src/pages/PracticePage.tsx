@@ -10,6 +10,7 @@ import EmptyState from '../components/EmptyState'
 import FlashCard from '../components/FlashCard'
 import DifficultyButtons from '../components/DifficultyButtons'
 import ExplainButton from '../components/ExplainButton'
+import { useTranslation } from '../i18n'
 
 const SESSION_KEY = 'practice_session'
 const SESSION_MAX_AGE = 30 * 60 * 1000 // 30 minutes
@@ -58,6 +59,7 @@ function clearSession() {
 
 export default function PracticePage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { setDueCount, activeLanguagePair, languagePairVersion } = useApp()
   const [cards, setCards] = useState<Flashcard[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -180,23 +182,23 @@ export default function PracticePage() {
     }
   }
 
-  if (loading) return <LoadingSpinner text="Loading cards..." />
+  if (loading) return <LoadingSpinner text={t('practice.loading')} />
 
   if (sessionComplete || cards.length === 0) {
     return (
       <div className="page">
         <EmptyState
           icon={reviewed > 0 ? '🎉' : '✅'}
-          title={reviewed > 0 ? 'Session Complete!' : 'All Caught Up!'}
+          title={reviewed > 0 ? t('practice.sessionComplete') : t('practice.allCaughtUp')}
           description={
             reviewed > 0
-              ? `Great job! You reviewed ${reviewed} card${reviewed !== 1 ? 's' : ''}.`
-              : 'No cards are due for review right now. Add some cards or come back later.'
+              ? t('practice.sessionCompleteSub', { count: reviewed, s: reviewed !== 1 ? 's' : '' })
+              : t('practice.noDueSub')
           }
           action={
             reviewed === 0
-              ? { label: 'Add Cards', onClick: () => navigate('/add') }
-              : { label: 'Back to Home', onClick: () => navigate('/') }
+              ? { label: t('practice.addCards'), onClick: () => navigate('/add') }
+              : { label: t('practice.backToHome'), onClick: () => navigate('/') }
           }
         />
       </div>
@@ -209,9 +211,9 @@ export default function PracticePage() {
         {/* Practice mode selector */}
         <div style={{ display: 'flex', marginBottom: '10px', borderRadius: '8px', overflow: 'hidden' }}>
           {([
-            { mode: 'source-to-target' as PracticeMode, label: 'Source\u2192Target' },
-            { mode: 'target-to-source' as PracticeMode, label: 'Target\u2192Source' },
-            { mode: 'random' as PracticeMode, label: 'Random' },
+            { mode: 'source-to-target' as PracticeMode, label: t('practice.sourceToTarget') },
+            { mode: 'target-to-source' as PracticeMode, label: t('practice.targetToSource') },
+            { mode: 'random' as PracticeMode, label: t('practice.random') },
           ]).map(({ mode, label }, i) => (
             <button
               key={mode}
@@ -238,10 +240,10 @@ export default function PracticePage() {
           marginBottom: '8px',
         }}>
           <span style={{ fontSize: '14px', color: 'var(--tg-hint-color)' }}>
-            Card {currentIndex + 1} of {cards.length}
+            {t('practice.cardOf', { current: currentIndex + 1, total: cards.length })}
           </span>
           <span style={{ fontSize: '14px', color: 'var(--tg-hint-color)' }}>
-            Reviewed: {reviewed}
+            {t('practice.reviewed', { count: reviewed })}
           </span>
         </div>
         {/* Progress bar */}
@@ -272,7 +274,7 @@ export default function PracticePage() {
       <div style={{ padding: '0 16px' }}>
         {!showAnswer ? (
           <Button size="l" stretched onClick={handleReveal}>
-            Show Answer
+            {t('practice.showAnswer')}
           </Button>
         ) : (
           <>

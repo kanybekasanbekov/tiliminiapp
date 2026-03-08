@@ -1,23 +1,26 @@
 import type { Difficulty } from '../types'
+import { useTranslation } from '../i18n'
 
 interface DifficultyButtonsProps {
   onRate: (difficulty: Difficulty) => void
   disabled?: boolean
 }
 
-const buttons: { difficulty: Difficulty; label: string; color: string; sublabel: string }[] = [
-  { difficulty: 'hard', label: 'Hard', color: '#ff3b30', sublabel: 'Again' },
-  { difficulty: 'medium', label: 'Medium', color: '#ff9500', sublabel: 'Good' },
-  { difficulty: 'easy', label: 'Easy', color: '#34c759', sublabel: 'Easy' },
-]
-
 export default function DifficultyButtons({ onRate, disabled }: DifficultyButtonsProps) {
+  const { t } = useTranslation()
+
+  const buttons: { difficulty: Difficulty; labelKey: string; color: string; sublabelKey: string }[] = [
+    { difficulty: 'hard', labelKey: 'difficulty.hard', color: '#ff3b30', sublabelKey: 'difficulty.again' },
+    { difficulty: 'medium', labelKey: 'difficulty.medium', color: '#ff9500', sublabelKey: 'difficulty.good' },
+    { difficulty: 'easy', labelKey: 'difficulty.easy', color: '#34c759', sublabelKey: 'difficulty.easy' },
+  ]
+
   return (
     <div style={{
       display: 'flex',
       gap: '12px',
     }}>
-      {buttons.map(({ difficulty, label, color, sublabel }) => (
+      {buttons.map(({ difficulty, labelKey, color, sublabelKey }) => (
         <button
           key={difficulty}
           onClick={() => onRate(difficulty)}
@@ -37,8 +40,8 @@ export default function DifficultyButtons({ onRate, disabled }: DifficultyButton
             gap: '2px',
           }}
         >
-          <span style={{ fontSize: '16px', fontWeight: 700, color }}>{label}</span>
-          <span style={{ fontSize: '11px', color: 'var(--tg-hint-color)' }}>{sublabel}</span>
+          <span style={{ fontSize: '16px', fontWeight: 700, color }}>{t(labelKey)}</span>
+          <span style={{ fontSize: '11px', color: 'var(--tg-hint-color)' }}>{t(sublabelKey)}</span>
         </button>
       ))}
     </div>
