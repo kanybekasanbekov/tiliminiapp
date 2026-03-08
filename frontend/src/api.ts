@@ -40,10 +40,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 // Cards API
 export const api = {
-  translateWord: (word: string) =>
+  translateWord: (word: string, languagePair: string = 'ko-en') =>
     request<TranslationResult>('/api/cards/translate', {
       method: 'POST',
-      body: JSON.stringify({ word }),
+      body: JSON.stringify({ word, language_pair: languagePair }),
     }),
 
   createCard: (card: Omit<TranslationResult, never> & { deck_id?: number }) =>

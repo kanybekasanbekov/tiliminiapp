@@ -91,7 +91,7 @@ export default function AddCardPage() {
     setError('')
     setTranslation(null)
     try {
-      const result = await api.translateWord(word.trim())
+      const result = await api.translateWord(word.trim(), activeLangPair)
       setTranslation(result)
       setEditData(result)
       WebApp.HapticFeedback.impactOccurred('light')

@@ -13,6 +13,7 @@ router = APIRouter()
 
 class TranslateRequest(BaseModel):
     word: str
+    language_pair: str = "ko-en"
 
 
 class CardCreateRequest(BaseModel):
@@ -36,10 +37,11 @@ async def translate_word(
     request: Request,
     user: dict[str, Any] = Depends(ensure_user),
 ):
-    """Translate a Korean word using AI."""
+    """Translate a word using AI."""
     llm = request.app.state.llm
     try:
-        result = await llm.translate_korean(body.word)
+        source_lang, target_lang = body.language_pair.split("-", 1)
+        result = await llm.translate(body.word, source_lang, target_lang)
         return result.model_dump()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

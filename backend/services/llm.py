@@ -17,16 +17,54 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 RETRY_DELAY_BASE = 1.0
 
-SYSTEM_PROMPT = """You are a Korean language expert. Given a Korean word, phrase, or sentence, provide:
-1. The Korean word, phrase, or sentence (cleaned/corrected if needed)
-2. English translation. If the word has multiple meanings, provide the English translation for each meaning.
-3. An example sentence in Korean using this word, and its English translation.
-   Use polite/존댓말 form (e.g. ~요/~습니다 endings) for example sentences.
+SUPPORTED_PAIRS: dict[str, dict] = {
+    "ko-en": {
+        "source_name": "Korean",
+        "target_name": "English",
+        "extra_instructions": "Use polite/존댓말 form (e.g. ~요/~습니다 endings) for example sentences.",
+    },
+    "en-ko": {
+        "source_name": "English",
+        "target_name": "Korean",
+        "extra_instructions": "Use polite/존댓말 form (e.g. ~요/~습니다 endings) for example sentences.",
+    },
+    "ko-ru": {
+        "source_name": "Korean",
+        "target_name": "Russian",
+        "extra_instructions": "Use polite/존댓말 form (e.g. ~요/~습니다 endings) for example sentences in Korean. Use formal register for Russian translations.",
+    },
+    "en-ru": {
+        "source_name": "English",
+        "target_name": "Russian",
+        "extra_instructions": "Use formal register for Russian translations.",
+    },
+}
+
+
+def build_translation_prompt(source_lang: str, target_lang: str) -> str:
+    """Build a translation system prompt for the given language pair."""
+    pair_key = f"{source_lang}-{target_lang}"
+    pair = SUPPORTED_PAIRS.get(pair_key)
+    if pair:
+        source_name = pair["source_name"]
+        target_name = pair["target_name"]
+        extra = pair["extra_instructions"]
+    else:
+        source_name = source_lang.upper()
+        target_name = target_lang.upper()
+        extra = ""
+
+    extra_line = f"\n   {extra}" if extra else ""
+
+    return f"""You are a {source_name} language expert. Given a {source_name} word, phrase, or sentence, provide:
+1. The {source_name} word, phrase, or sentence (cleaned/corrected if needed)
+2. {target_name} translation. If the word has multiple meanings, provide the {target_name} translation for each meaning.
+3. An example sentence in {source_name} using this word, and its {target_name} translation.{extra_line}
 
 Respond with ONLY a raw JSON object, no markdown, no code fences, no explanation:
-{"source_text": "...", "target_text": "...", "example_source": "...", "example_target": "..."}
+{{"source_text": "...", "target_text": "...", "example_source": "...", "example_target": "..."}}
 
-If the word is not a valid Korean word, respond with "Invalid word"."""
+If the word is not a valid {source_name} word, respond with "Invalid word"."""
 
 
 def _extract_json(text: str) -> dict:
@@ -68,8 +106,8 @@ class LLMProvider(ABC):
     """Abstract base for LLM providers."""
 
     @abstractmethod
-    async def translate_korean(self, word: str) -> TranslationResult:
-        """Translate a Korean word and return structured data."""
+    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> TranslationResult:
+        """Translate a word and return structured data."""
         ...
 
 
@@ -80,13 +118,14 @@ class AnthropicProvider(LLMProvider):
         self.client = anthropic.AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
         self.model = config.LLM_MODEL
 
-    async def translate_korean(self, word: str) -> TranslationResult:
+    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> TranslationResult:
+        system_prompt = build_translation_prompt(source_lang, target_lang)
         for attempt in range(MAX_RETRIES):
             try:
                 response = await self.client.messages.create(
                     model=self.model,
                     max_tokens=512,
-                    system=SYSTEM_PROMPT,
+                    system=system_prompt,
                     messages=[{"role": "user", "content": word}],
                 )
                 text = ""
@@ -122,7 +161,8 @@ class OpenAIProvider(LLMProvider):
         self.client = openai.AsyncOpenAI(api_key=config.OPENAI_API_KEY)
         self.model = config.LLM_MODEL or "gpt-4.1-mini"
 
-    async def translate_korean(self, word: str) -> TranslationResult:
+    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> TranslationResult:
+        system_prompt = build_translation_prompt(source_lang, target_lang)
         for attempt in range(MAX_RETRIES):
             try:
                 response = await self.client.chat.completions.create(
@@ -130,7 +170,7 @@ class OpenAIProvider(LLMProvider):
                     max_tokens=512,
                     response_format={"type": "json_object"},
                     messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": word},
                     ],
                 )
