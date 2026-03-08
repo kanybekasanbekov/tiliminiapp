@@ -74,7 +74,28 @@ export default function StatsPage() {
             Due Today
           </div>
         </div>
+        <div style={{
+          flex: 1,
+          padding: '20px',
+          backgroundColor: stats.current_streak > 0 ? '#ff9500' : 'var(--tg-secondary-bg-color)',
+          borderRadius: '16px',
+          textAlign: 'center',
+          color: stats.current_streak > 0 ? '#fff' : undefined,
+        }}>
+          <div style={{ fontSize: '32px', fontWeight: 700 }}>
+            {stats.current_streak > 0 ? '🔥' : ''} {stats.current_streak}
+          </div>
+          <div style={{ fontSize: '13px', opacity: stats.current_streak > 0 ? 0.9 : undefined, color: stats.current_streak > 0 ? undefined : 'var(--tg-hint-color)', marginTop: '4px' }}>
+            Day Streak
+          </div>
+        </div>
       </div>
+
+      {stats.longest_streak > 0 && (
+        <div style={{ padding: '0 16px 8px', fontSize: '13px', color: 'var(--tg-hint-color)', textAlign: 'center' }}>
+          Longest streak: {stats.longest_streak} days
+        </div>
+      )}
 
       <Section header="Interval Distribution">
         <div style={{ padding: '16px' }}>

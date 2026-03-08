@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Section, Cell, Badge } from '@telegram-apps/telegram-ui'
 import { useApp } from '../contexts/AppContext'
@@ -7,10 +7,12 @@ import { api } from '../api'
 export default function HomePage() {
   const navigate = useNavigate()
   const { user, dueCount, setDueCount } = useApp()
+  const [streak, setStreak] = useState(0)
 
   useEffect(() => {
     api.getStats().then((stats) => {
       setDueCount(stats.due)
+      setStreak(stats.current_streak)
     }).catch(() => {})
   }, [setDueCount])
 
@@ -24,6 +26,28 @@ export default function HomePage() {
           Ready to learn?
         </p>
       </div>
+
+      {streak > 0 && (
+        <div style={{
+          padding: '0 16px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+        }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 10px',
+            borderRadius: '12px',
+            backgroundColor: 'var(--tg-secondary-bg-color)',
+            fontSize: '14px',
+            fontWeight: 600,
+          }}>
+            🔥 {streak} day streak
+          </span>
+        </div>
+      )}
 
       {dueCount > 0 && (
         <div

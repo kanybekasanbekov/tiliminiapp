@@ -61,6 +61,9 @@ export interface UserStats {
     young: number
     mature: number
   }
+  current_streak: number
+  longest_streak: number
+  last_practice_date: string | null
 }
 
 export interface UserPreferences {

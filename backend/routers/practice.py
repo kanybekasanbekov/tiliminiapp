@@ -80,6 +80,9 @@ async def submit_review(
         result.next_review.strftime("%Y-%m-%d %H:%M:%S"),
     )
 
+    # Update daily practice streak
+    await models.update_streak(db, user_id)
+
     # Get remaining due count
     stats = await models.get_user_stats(db, user_id)
 

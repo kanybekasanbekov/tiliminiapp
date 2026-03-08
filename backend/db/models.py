@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import aiosqlite
 
@@ -402,6 +402,42 @@ async def update_flashcard_srs(
     await conn.commit()
 
 
+async def update_streak(
+    conn: aiosqlite.Connection,
+    user_id: int,
+) -> None:
+    """Update the user's daily practice streak."""
+    user = await get_user(conn, user_id)
+    if not user:
+        return
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    last = user["last_practice_date"]
+    current = user["current_streak"] or 0
+    longest = user["longest_streak"] or 0
+
+    if last == today:
+        return  # already practiced today
+
+    if last:
+        last_date = datetime.strptime(last, "%Y-%m-%d")
+        today_date = datetime.strptime(today, "%Y-%m-%d")
+        if today_date - last_date == timedelta(days=1):
+            current += 1
+        else:
+            current = 1
+    else:
+        current = 1
+
+    longest = max(longest, current)
+    await update_user_preferences(
+        conn, user_id,
+        current_streak=current,
+        longest_streak=longest,
+        last_practice_date=today,
+    )
+
+
 async def get_user_stats(
     conn: aiosqlite.Connection,
     user_id: int,
@@ -444,10 +480,14 @@ async def get_user_stats(
         "mature": row["mature_count"] or 0,
     } if row else {"new": 0, "learning": 0, "young": 0, "mature": 0}
 
+    user = await get_user(conn, user_id)
     return {
         "total": total,
         "due": due,
         "distribution": distribution,
+        "current_streak": user["current_streak"] if user else 0,
+        "longest_streak": user["longest_streak"] if user else 0,
+        "last_practice_date": user["last_practice_date"] if user else None,
     }
 
 
