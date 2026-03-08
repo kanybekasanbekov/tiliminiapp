@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import WebApp from '@twa-dev/sdk'
+import { api } from '../api'
 
 interface AppContextType {
   user: {
@@ -11,6 +12,8 @@ interface AppContextType {
   colorScheme: 'light' | 'dark'
   dueCount: number
   setDueCount: (count: number) => void
+  activeLanguagePair: string
+  setActiveLanguagePair: (pair: string) => void
 }
 
 const AppContext = createContext<AppContextType>({
@@ -18,10 +21,13 @@ const AppContext = createContext<AppContextType>({
   colorScheme: 'light',
   dueCount: 0,
   setDueCount: () => {},
+  activeLanguagePair: 'ko-en',
+  setActiveLanguagePair: () => {},
 })
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [dueCount, setDueCount] = useState(0)
+  const [activeLanguagePair, setActiveLanguagePair] = useState('ko-en')
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(
     WebApp.colorScheme || 'light'
   )
@@ -43,8 +49,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => WebApp.offEvent('themeChanged', handler)
   }, [])
 
+  useEffect(() => {
+    api.getPreferences().then((prefs) => {
+      if (prefs.active_language_pair) {
+        setActiveLanguagePair(prefs.active_language_pair)
+      }
+    }).catch(() => {})
+  }, [])
+
   return (
-    <AppContext.Provider value={{ user, colorScheme, dueCount, setDueCount }}>
+    <AppContext.Provider value={{ user, colorScheme, dueCount, setDueCount, activeLanguagePair, setActiveLanguagePair }}>
       {children}
     </AppContext.Provider>
   )

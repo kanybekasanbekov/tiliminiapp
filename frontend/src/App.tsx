@@ -7,6 +7,7 @@ import PracticePage from './pages/PracticePage'
 import CardsListPage from './pages/CardsListPage'
 import DecksPage from './pages/DecksPage'
 import StatsPage from './pages/StatsPage'
+import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/decks" element={<DecksPage />} />
           <Route path="/cards" element={<CardsListPage />} />
           <Route path="/stats" element={<StatsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <NavigationBar />

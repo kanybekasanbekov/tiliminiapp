@@ -125,7 +125,7 @@ export const api = {
   // User Preferences API
   getPreferences: () => request<UserPreferences>('/api/user/preferences'),
 
-  updatePreferences: (data: { preferred_deck_id: number | null }) =>
+  updatePreferences: (data: { preferred_deck_id?: number | null; active_language_pair?: string }) =>
     request<UserPreferences>('/api/user/preferences', {
       method: 'PUT',
       body: JSON.stringify(data),

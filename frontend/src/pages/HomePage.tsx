@@ -18,13 +18,30 @@ export default function HomePage() {
 
   return (
     <div className="page">
-      <div style={{ padding: '24px 16px 16px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 700 }}>
-          Hello{user ? `, ${user.first_name}` : ''}!
-        </h1>
-        <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '15px' }}>
-          Ready to learn?
-        </p>
+      <div style={{ padding: '24px 16px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: 700 }}>
+            Hello{user ? `, ${user.first_name}` : ''}!
+          </h1>
+          <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '15px' }}>
+            Ready to learn?
+          </p>
+        </div>
+        <button
+          onClick={() => navigate('/settings')}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: '4px',
+            fontSize: '24px',
+            cursor: 'pointer',
+            color: 'var(--tg-hint-color)',
+            lineHeight: 1,
+          }}
+          aria-label="Settings"
+        >
+          ⚙
+        </button>
       </div>
 
       {streak > 0 && (
