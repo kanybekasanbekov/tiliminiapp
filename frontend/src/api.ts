@@ -6,7 +6,9 @@ import type {
   DueCardsResponse,
   ReviewResponse,
   UserStats,
+  UserPreferences,
   Difficulty,
+  Deck,
 } from './types'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -44,14 +46,17 @@ export const api = {
       body: JSON.stringify({ word }),
     }),
 
-  createCard: (card: Omit<TranslationResult, never>) =>
+  createCard: (card: Omit<TranslationResult, never> & { deck_id?: number }) =>
     request<Flashcard>('/api/cards', {
       method: 'POST',
       body: JSON.stringify(card),
     }),
 
-  getCards: (page = 1, perPage = 10) =>
-    request<PaginatedCards>(`/api/cards?page=${page}&per_page=${perPage}`),
+  getCards: (page = 1, perPage = 10, deckId?: number) => {
+    let url = `/api/cards?page=${page}&per_page=${perPage}`
+    if (deckId != null) url += `&deck_id=${deckId}`
+    return request<PaginatedCards>(url)
+  },
 
   getCard: (id: number) =>
     request<Flashcard>(`/api/cards/${id}`),
@@ -65,6 +70,37 @@ export const api = {
   deleteCard: (id: number) =>
     request<{ deleted: boolean }>(`/api/cards/${id}`, { method: 'DELETE' }),
 
+  // Decks API
+  getDecks: (languagePair?: string) => {
+    let url = '/api/decks'
+    if (languagePair) url += `?language_pair=${languagePair}`
+    return request<{ decks: Deck[] }>(url)
+  },
+
+  createDeck: (data: { name: string; description?: string; language_pair?: string }) =>
+    request<Deck>('/api/decks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getDeck: (id: number) =>
+    request<Deck>(`/api/decks/${id}`),
+
+  updateDeck: (id: number, data: { name?: string; description?: string }) =>
+    request<Deck>(`/api/decks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteDeck: (id: number) =>
+    request<{ deleted: boolean }>(`/api/decks/${id}`, { method: 'DELETE' }),
+
+  moveCard: (deckId: number, cardId: number) =>
+    request<{ moved: boolean }>(`/api/decks/${deckId}/move-card`, {
+      method: 'POST',
+      body: JSON.stringify({ card_id: cardId }),
+    }),
+
   // Practice API
   getDueCards: (limit = 20) =>
     request<DueCardsResponse>(`/api/practice/due?limit=${limit}`),
@@ -77,4 +113,13 @@ export const api = {
 
   // Stats API
   getStats: () => request<UserStats>('/api/stats'),
+
+  // User Preferences API
+  getPreferences: () => request<UserPreferences>('/api/user/preferences'),
+
+  updatePreferences: (data: { preferred_deck_id: number | null }) =>
+    request<UserPreferences>('/api/user/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
 }

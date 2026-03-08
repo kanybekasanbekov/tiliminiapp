@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage'
 import AddCardPage from './pages/AddCardPage'
 import PracticePage from './pages/PracticePage'
 import CardsListPage from './pages/CardsListPage'
+import DecksPage from './pages/DecksPage'
 import StatsPage from './pages/StatsPage'
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/add" element={<AddCardPage />} />
           <Route path="/practice" element={<PracticePage />} />
+          <Route path="/decks" element={<DecksPage />} />
           <Route path="/cards" element={<CardsListPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

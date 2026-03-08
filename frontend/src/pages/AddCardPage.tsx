@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Section, Input, Button, Cell } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
-import type { TranslationResult } from '../types'
+import type { TranslationResult, Deck } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 const SESSION_KEY = 'addcard_draft'
@@ -48,7 +48,21 @@ export default function AddCardPage() {
   const [editing, setEditing] = useState(false)
   const [editData, setEditData] = useState<TranslationResult | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const [decks, setDecks] = useState<Deck[]>([])
+  const [selectedDeckId, setSelectedDeckId] = useState<number | undefined>(undefined)
   const initialized = useRef(false)
+
+  // Load decks and user preferred deck
+  useEffect(() => {
+    Promise.all([api.getDecks(), api.getPreferences()]).then(([decksData, prefs]) => {
+      setDecks(decksData.decks)
+      const preferred = prefs.preferred_deck_id
+        ? decksData.decks.find((d) => d.id === prefs.preferred_deck_id)
+        : null
+      const fallback = decksData.decks.find((d) => d.is_default)
+      setSelectedDeckId((preferred || fallback)?.id)
+    }).catch(() => {})
+  }, [])
 
   // Restore draft on mount
   useEffect(() => {
@@ -100,7 +114,11 @@ export default function AddCardPage() {
     setError('')
     try {
       const savedWord = editData.source_text
-      await api.createCard(editData)
+      await api.createCard({ ...editData, deck_id: selectedDeckId })
+      // Persist the selected deck as preferred for next time
+      if (selectedDeckId != null) {
+        api.updatePreferences({ preferred_deck_id: selectedDeckId }).catch(() => {})
+      }
       WebApp.HapticFeedback.notificationOccurred('success')
       setWord('')
       setTranslation(null)
@@ -211,6 +229,33 @@ export default function AddCardPage() {
               </>
             )}
           </Section>
+
+          {decks.length > 1 && (
+            <Section header="Save to Deck">
+              <div style={{ padding: '8px 16px 12px' }}>
+                <select
+                  value={selectedDeckId ?? ''}
+                  onChange={(e) => setSelectedDeckId(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--tg-secondary-bg-color)',
+                    backgroundColor: 'var(--tg-bg-color)',
+                    color: 'var(--tg-text-color)',
+                    fontSize: '15px',
+                    appearance: 'auto',
+                  }}
+                >
+                  {decks.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}{d.is_default ? ' (default)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </Section>
+          )}
 
           <div style={{ padding: '16px', display: 'flex', gap: '12px' }}>
             {!editing && (

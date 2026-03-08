@@ -60,11 +60,11 @@ export default function HomePage() {
           Practice
         </Cell>
         <Cell
-          onClick={() => navigate('/cards')}
+          onClick={() => navigate('/decks')}
           before={<span style={{ fontSize: '24px' }}>🗂</span>}
-          subtitle="View and manage your flashcards"
+          subtitle="Organize and browse your flashcard decks"
         >
-          My Cards
+          My Decks
         </Cell>
         <Cell
           onClick={() => navigate('/stats')}

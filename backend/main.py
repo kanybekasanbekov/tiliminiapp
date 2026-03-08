@@ -50,11 +50,13 @@ app.add_middleware(
 )
 
 # Import and include routers
-from backend.routers import cards, practice, stats  # noqa: E402
+from backend.routers import cards, decks, practice, stats, users  # noqa: E402
 
 app.include_router(cards.router, prefix="/api/cards", tags=["cards"])
+app.include_router(decks.router, prefix="/api/decks", tags=["decks"])
 app.include_router(practice.router, prefix="/api/practice", tags=["practice"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
+app.include_router(users.router, prefix="/api/user", tags=["user"])
 
 
 @app.get("/api/health")

@@ -11,6 +11,19 @@ export interface Flashcard {
   ease_factor: number
   interval_days: number
   repetitions: number
+  deck_id: number
+}
+
+export interface Deck {
+  id: number
+  user_id: number
+  name: string
+  description: string
+  language_pair: string
+  is_default: number
+  card_count: number
+  created_at: string
+  updated_at: string
 }
 
 export interface TranslationResult {
@@ -48,6 +61,12 @@ export interface UserStats {
     young: number
     mature: number
   }
+}
+
+export interface UserPreferences {
+  id: number
+  preferred_deck_id: number | null
+  active_language_pair: string
 }
 
 export type Difficulty = 'easy' | 'medium' | 'hard'

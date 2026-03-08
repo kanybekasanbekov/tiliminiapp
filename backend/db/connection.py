@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS flashcards (
     next_review TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ease_factor REAL DEFAULT 2.5,
     interval_days INTEGER DEFAULT 0,
-    repetitions INTEGER DEFAULT 0
+    repetitions INTEGER DEFAULT 0,
+    deck_id INTEGER NOT NULL DEFAULT 0
 );
 """
 
@@ -32,9 +33,24 @@ CREATE TABLE IF NOT EXISTS users (
 );
 """
 
+_DECKS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS decks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    language_pair TEXT NOT NULL DEFAULT 'ko-en',
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
 _INDEXES = """
 CREATE INDEX IF NOT EXISTS idx_user_review ON flashcards(user_id, next_review);
 CREATE INDEX IF NOT EXISTS idx_user_source ON flashcards(user_id, language_pair, source_text);
+CREATE INDEX IF NOT EXISTS idx_deck_user ON decks(user_id, language_pair);
+CREATE INDEX IF NOT EXISTS idx_flashcard_deck ON flashcards(deck_id);
 """
 
 _MIGRATION_SETUP = """
@@ -120,6 +136,87 @@ async def _run_migration_2(conn: aiosqlite.Connection) -> None:
     await conn.commit()
 
 
+async def _run_migration_3(conn: aiosqlite.Connection) -> None:
+    """Migration 3: Create decks table, backfill defaults, add deck_id to flashcards."""
+    cursor = await conn.execute("SELECT 1 FROM schema_versions WHERE version = 3")
+    if await cursor.fetchone():
+        return
+
+    # Create default decks for all existing users
+    await conn.execute(
+        """
+        INSERT INTO decks (user_id, name, language_pair, is_default)
+        SELECT DISTINCT id, 'Default', 'ko-en', 1 FROM users
+        WHERE id NOT IN (SELECT user_id FROM decks WHERE is_default = 1)
+        """
+    )
+
+    # Check if flashcards table already has deck_id (fresh install)
+    cursor = await conn.execute("PRAGMA table_info(flashcards)")
+    columns = {row[1] for row in await cursor.fetchall()}
+    if "deck_id" not in columns:
+        # CREATE-COPY-DROP-RENAME to add deck_id NOT NULL
+        await conn.executescript("""
+            CREATE TABLE flashcards_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                source_text TEXT NOT NULL,
+                target_text TEXT NOT NULL,
+                example_source TEXT,
+                example_target TEXT,
+                language_pair TEXT NOT NULL DEFAULT 'ko-en',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                next_review TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ease_factor REAL DEFAULT 2.5,
+                interval_days INTEGER DEFAULT 0,
+                repetitions INTEGER DEFAULT 0,
+                deck_id INTEGER NOT NULL DEFAULT 0
+            );
+
+            INSERT INTO flashcards_new
+                (id, user_id, source_text, target_text, example_source, example_target,
+                 language_pair, created_at, next_review, ease_factor, interval_days, repetitions, deck_id)
+            SELECT
+                f.id, f.user_id, f.source_text, f.target_text, f.example_source, f.example_target,
+                f.language_pair, f.created_at, f.next_review, f.ease_factor, f.interval_days, f.repetitions,
+                COALESCE(d.id, 0)
+            FROM flashcards f
+            LEFT JOIN decks d ON d.user_id = f.user_id AND d.is_default = 1;
+
+            DROP TABLE flashcards;
+
+            ALTER TABLE flashcards_new RENAME TO flashcards;
+
+            CREATE INDEX idx_user_review ON flashcards(user_id, next_review);
+            CREATE INDEX idx_user_source ON flashcards(user_id, language_pair, source_text);
+            CREATE INDEX idx_flashcard_deck ON flashcards(deck_id);
+        """)
+
+    await conn.execute(
+        "INSERT INTO schema_versions (version, description) VALUES (3, 'add decks table and deck_id to flashcards')"
+    )
+    await conn.commit()
+
+
+async def _run_migration_4(conn: aiosqlite.Connection) -> None:
+    """Migration 4: Add preferred_deck_id to users table."""
+    cursor = await conn.execute("SELECT 1 FROM schema_versions WHERE version = 4")
+    if await cursor.fetchone():
+        return
+
+    cursor = await conn.execute("PRAGMA table_info(users)")
+    columns = {row[1] for row in await cursor.fetchall()}
+    if "preferred_deck_id" not in columns:
+        await conn.execute(
+            "ALTER TABLE users ADD COLUMN preferred_deck_id INTEGER DEFAULT NULL"
+        )
+
+    await conn.execute(
+        "INSERT INTO schema_versions (version, description) VALUES (4, 'add preferred_deck_id to users')"
+    )
+    await conn.commit()
+
+
 async def init_db(db_path: str) -> aiosqlite.Connection:
     """Open the database, enable WAL mode, and create schema if needed."""
     conn = await aiosqlite.connect(db_path)
@@ -131,8 +228,11 @@ async def init_db(db_path: str) -> aiosqlite.Connection:
     await conn.execute("PRAGMA temp_store=MEMORY")
     await conn.executescript(_SCHEMA)
     await conn.executescript(_USERS_SCHEMA)
+    await conn.executescript(_DECKS_SCHEMA)
     await _run_migrations(conn)
     await _run_migration_2(conn)
+    await _run_migration_3(conn)
+    await _run_migration_4(conn)
     await conn.executescript(_INDEXES)
     await conn.commit()
     return conn

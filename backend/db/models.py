@@ -59,7 +59,7 @@ async def update_user_preferences(
     **kwargs: str | int | None,
 ) -> dict | None:
     """Update user preference fields. Returns updated user or None."""
-    allowed = {"active_language_pair", "current_streak", "longest_streak", "last_practice_date"}
+    allowed = {"active_language_pair", "current_streak", "longest_streak", "last_practice_date", "preferred_deck_id"}
     updates = ["updated_at = CURRENT_TIMESTAMP"]
     params: list = []
 
@@ -82,6 +82,166 @@ async def update_user_preferences(
     return await get_user(conn, user_id)
 
 
+async def get_or_create_default_deck(
+    conn: aiosqlite.Connection,
+    user_id: int,
+    language_pair: str = "ko-en",
+) -> dict:
+    """Get the user's default deck for a language pair, creating it if needed."""
+    cursor = await conn.execute(
+        "SELECT * FROM decks WHERE user_id = ? AND language_pair = ? AND is_default = 1",
+        (user_id, language_pair),
+    )
+    row = await cursor.fetchone()
+    if row:
+        return dict(row)
+
+    cursor = await conn.execute(
+        """
+        INSERT INTO decks (user_id, name, language_pair, is_default)
+        VALUES (?, 'Default', ?, 1)
+        """,
+        (user_id, language_pair),
+    )
+    await conn.commit()
+    cursor = await conn.execute("SELECT * FROM decks WHERE id = ?", (cursor.lastrowid,))
+    row = await cursor.fetchone()
+    return dict(row)  # type: ignore[arg-type]
+
+
+async def create_deck(
+    conn: aiosqlite.Connection,
+    user_id: int,
+    name: str,
+    description: str = "",
+    language_pair: str = "ko-en",
+) -> int:
+    """Create a new (non-default) deck. Returns the new deck id."""
+    cursor = await conn.execute(
+        """
+        INSERT INTO decks (user_id, name, description, language_pair, is_default)
+        VALUES (?, ?, ?, ?, 0)
+        """,
+        (user_id, name, description, language_pair),
+    )
+    await conn.commit()
+    return cursor.lastrowid  # type: ignore[return-value]
+
+
+async def get_user_decks(
+    conn: aiosqlite.Connection,
+    user_id: int,
+    language_pair: str | None = None,
+) -> list[dict]:
+    """List user's decks with card counts. Default deck appears first."""
+    query = """
+        SELECT d.*, COUNT(f.id) as card_count
+        FROM decks d
+        LEFT JOIN flashcards f ON f.deck_id = d.id
+        WHERE d.user_id = ?
+    """
+    params: list = [user_id]
+    if language_pair is not None:
+        query += " AND d.language_pair = ?"
+        params.append(language_pair)
+    query += " GROUP BY d.id ORDER BY d.is_default DESC, d.created_at ASC"
+
+    cursor = await conn.execute(query, params)
+    rows = await cursor.fetchall()
+    return [dict(r) for r in rows]
+
+
+async def get_deck(
+    conn: aiosqlite.Connection,
+    deck_id: int,
+    user_id: int,
+) -> dict | None:
+    """Fetch a single deck by id, scoped to user."""
+    cursor = await conn.execute(
+        "SELECT * FROM decks WHERE id = ? AND user_id = ?",
+        (deck_id, user_id),
+    )
+    row = await cursor.fetchone()
+    return dict(row) if row else None
+
+
+async def update_deck(
+    conn: aiosqlite.Connection,
+    deck_id: int,
+    user_id: int,
+    name: str | None = None,
+    description: str | None = None,
+) -> dict | None:
+    """Update a deck's name and/or description. Returns updated deck or None."""
+    updates = ["updated_at = CURRENT_TIMESTAMP"]
+    params: list = []
+    if name is not None:
+        updates.append("name = ?")
+        params.append(name)
+    if description is not None:
+        updates.append("description = ?")
+        params.append(description)
+
+    if len(updates) == 1:
+        return await get_deck(conn, deck_id, user_id)
+
+    params.extend([deck_id, user_id])
+    await conn.execute(
+        f"UPDATE decks SET {', '.join(updates)} WHERE id = ? AND user_id = ?",
+        params,
+    )
+    await conn.commit()
+    return await get_deck(conn, deck_id, user_id)
+
+
+async def delete_deck(
+    conn: aiosqlite.Connection,
+    deck_id: int,
+    user_id: int,
+) -> bool:
+    """Delete a deck, moving its cards to the default deck. Cannot delete the default deck."""
+    deck = await get_deck(conn, deck_id, user_id)
+    if not deck:
+        return False
+    if deck["is_default"]:
+        raise ValueError("Cannot delete the default deck")
+
+    # Find the default deck for this language pair
+    default = await get_or_create_default_deck(conn, user_id, deck["language_pair"])
+
+    # Move cards to the default deck
+    await conn.execute(
+        "UPDATE flashcards SET deck_id = ? WHERE deck_id = ? AND user_id = ?",
+        (default["id"], deck_id, user_id),
+    )
+    await conn.execute(
+        "DELETE FROM decks WHERE id = ? AND user_id = ?",
+        (deck_id, user_id),
+    )
+    await conn.commit()
+    return True
+
+
+async def move_card_to_deck(
+    conn: aiosqlite.Connection,
+    card_id: int,
+    deck_id: int,
+    user_id: int,
+) -> bool:
+    """Move a flashcard to a different deck. Both must belong to the user."""
+    # Verify deck belongs to user
+    deck = await get_deck(conn, deck_id, user_id)
+    if not deck:
+        return False
+
+    cursor = await conn.execute(
+        "UPDATE flashcards SET deck_id = ? WHERE id = ? AND user_id = ?",
+        (deck_id, card_id, user_id),
+    )
+    await conn.commit()
+    return cursor.rowcount > 0
+
+
 async def add_flashcard(
     conn: aiosqlite.Connection,
     user_id: int,
@@ -90,14 +250,18 @@ async def add_flashcard(
     example_source: str | None = None,
     example_target: str | None = None,
     language_pair: str = "ko-en",
+    deck_id: int | None = None,
 ) -> int:
     """Insert a new flashcard. Returns the new row id."""
+    if deck_id is None:
+        deck = await get_or_create_default_deck(conn, user_id, language_pair)
+        deck_id = deck["id"]
     cursor = await conn.execute(
         """
-        INSERT INTO flashcards (user_id, source_text, target_text, example_source, example_target, language_pair)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO flashcards (user_id, source_text, target_text, example_source, example_target, language_pair, deck_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (user_id, source_text, target_text, example_source, example_target, language_pair),
+        (user_id, source_text, target_text, example_source, example_target, language_pair, deck_id),
     )
     await conn.commit()
     return cursor.lastrowid  # type: ignore[return-value]
@@ -141,23 +305,30 @@ async def get_all_flashcards(
     user_id: int,
     offset: int = 0,
     limit: int = 10,
+    deck_id: int | None = None,
 ) -> tuple[list[dict], int]:
-    """Paginated list. Returns (flashcards, total_count)."""
+    """Paginated list. Returns (flashcards, total_count). Optionally filter by deck."""
+    where = "WHERE user_id = ?"
+    params: list = [user_id]
+    if deck_id is not None:
+        where += " AND deck_id = ?"
+        params.append(deck_id)
+
     cursor = await conn.execute(
-        "SELECT COUNT(*) as cnt FROM flashcards WHERE user_id = ?",
-        (user_id,),
+        f"SELECT COUNT(*) as cnt FROM flashcards {where}",
+        params,
     )
     row = await cursor.fetchone()
     total = row["cnt"] if row else 0
 
     cursor = await conn.execute(
-        """
+        f"""
         SELECT * FROM flashcards
-        WHERE user_id = ?
+        {where}
         ORDER BY created_at DESC
         LIMIT ? OFFSET ?
         """,
-        (user_id, limit, offset),
+        params + [limit, offset],
     )
     rows = await cursor.fetchall()
     return [dict(r) for r in rows], total

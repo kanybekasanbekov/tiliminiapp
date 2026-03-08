@@ -2,14 +2,18 @@ import { useState, useEffect } from 'react'
 import { Section, Cell, Button, Input } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
-import type { Flashcard } from '../types'
+import type { Flashcard, Deck } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import FlashCard from '../components/FlashCard'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 export default function CardsListPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const deckIdParam = searchParams.get('deck')
+  const deckId = deckIdParam ? Number(deckIdParam) : undefined
+  const [deckName, setDeckName] = useState<string | null>(null)
   const [cards, setCards] = useState<Flashcard[]>([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -30,7 +34,7 @@ export default function CardsListPage() {
   const loadCards = async (p: number) => {
     setLoading(true)
     try {
-      const data = await api.getCards(p, 10)
+      const data = await api.getCards(p, 10, deckId)
       setCards(data.cards)
       setTotalPages(data.total_pages)
       setTotal(data.total)
@@ -44,7 +48,12 @@ export default function CardsListPage() {
 
   useEffect(() => {
     loadCards(1)
-  }, [])
+    if (deckId != null) {
+      api.getDeck(deckId).then((d) => setDeckName(d.name)).catch(() => {})
+    } else {
+      setDeckName(null)
+    }
+  }, [deckId])
 
   const handleDelete = async (card: Flashcard) => {
     WebApp.showConfirm(
@@ -112,9 +121,30 @@ export default function CardsListPage() {
   return (
     <div className="page">
       <div style={{ padding: '24px 16px 8px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 700 }}>My Cards</h1>
+        {deckId != null && (
+          <button
+            onClick={() => navigate('/decks')}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--tg-button-color)',
+              fontSize: '14px',
+              padding: 0,
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            ← Back to Decks
+          </button>
+        )}
+        <h1 style={{ fontSize: '24px', fontWeight: 700 }}>
+          {deckName ?? 'My Cards'}
+        </h1>
         <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '14px' }}>
-          {total} card{total !== 1 ? 's' : ''} total
+          {total} card{total !== 1 ? 's' : ''}{deckId != null ? ' in this deck' : ' total'}
         </p>
       </div>
 

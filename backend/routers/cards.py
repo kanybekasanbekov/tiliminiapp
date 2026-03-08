@@ -21,6 +21,7 @@ class CardCreateRequest(BaseModel):
     example_source: str | None = None
     example_target: str | None = None
     language_pair: str = "ko-en"
+    deck_id: int | None = None
 
 
 class CardUpdateRequest(BaseModel):
@@ -61,7 +62,8 @@ async def create_card(
         raise HTTPException(status_code=400, detail="You already have a card for this word")
 
     card_id = await models.add_flashcard(
-        db, user_id, body.source_text, body.target_text, body.example_source, body.example_target, body.language_pair
+        db, user_id, body.source_text, body.target_text, body.example_source, body.example_target, body.language_pair,
+        deck_id=body.deck_id,
     )
     card = await models.get_flashcard_by_id(db, card_id, user_id)
     return card
@@ -72,14 +74,15 @@ async def list_cards(
     request: Request,
     page: int = 1,
     per_page: int = 10,
+    deck_id: int | None = None,
     user: dict[str, Any] = Depends(ensure_user),
 ):
-    """List user's flashcards with pagination."""
+    """List user's flashcards with pagination, optionally filtered by deck."""
     db = request.app.state.db
     user_id = user["id"]
     offset = (page - 1) * per_page
 
-    cards, total = await models.get_all_flashcards(db, user_id, offset, per_page)
+    cards, total = await models.get_all_flashcards(db, user_id, offset, per_page, deck_id=deck_id)
     total_pages = (total + per_page - 1) // per_page
 
     return {
