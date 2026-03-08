@@ -373,6 +373,7 @@ async def delete_flashcard(
     user_id: int,
 ) -> bool:
     """Delete by id scoped to user. Returns True if deleted."""
+    await delete_explanations_for_card(conn, flashcard_id)
     cursor = await conn.execute(
         "DELETE FROM flashcards WHERE id = ? AND user_id = ?",
         (flashcard_id, user_id),
@@ -448,6 +449,48 @@ async def get_user_stats(
         "due": due,
         "distribution": distribution,
     }
+
+
+async def get_explanation(
+    conn: aiosqlite.Connection,
+    card_id: int,
+    user_id: int,
+) -> dict | None:
+    """Fetch cached explanation for a card, scoped to user."""
+    cursor = await conn.execute(
+        "SELECT * FROM explanations WHERE card_id = ? AND user_id = ?",
+        (card_id, user_id),
+    )
+    row = await cursor.fetchone()
+    return dict(row) if row else None
+
+
+async def save_explanation(
+    conn: aiosqlite.Connection,
+    card_id: int,
+    user_id: int,
+    explanation: str,
+) -> dict:
+    """Insert or replace explanation for a card."""
+    await conn.execute(
+        "INSERT OR REPLACE INTO explanations (card_id, user_id, explanation) VALUES (?, ?, ?)",
+        (card_id, user_id, explanation),
+    )
+    await conn.commit()
+    cursor = await conn.execute(
+        "SELECT * FROM explanations WHERE card_id = ? AND user_id = ?",
+        (card_id, user_id),
+    )
+    row = await cursor.fetchone()
+    return dict(row)  # type: ignore[arg-type]
+
+
+async def delete_explanations_for_card(
+    conn: aiosqlite.Connection,
+    card_id: int,
+) -> None:
+    """Delete explanation when card is deleted."""
+    await conn.execute("DELETE FROM explanations WHERE card_id = ?", (card_id,))
 
 
 async def check_duplicate(

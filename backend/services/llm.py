@@ -106,12 +106,39 @@ class TranslationResult(BaseModel):
     example_target: str
 
 
+def build_explanation_prompt(word: str, translation: str, source_lang: str, target_lang: str) -> str:
+    """Build a prompt for generating a word explanation."""
+    pair_key = f"{source_lang}-{target_lang}"
+    pair = SUPPORTED_PAIRS.get(pair_key)
+    source_name = pair["source_name"] if pair else source_lang.upper()
+    target_name = pair["target_name"] if pair else target_lang.upper()
+
+    return f"""You are a {source_name} language expert. Explain the following word to a {target_name}-speaking learner.
+
+Word: {word}
+Translation: {translation}
+
+Provide a concise but informative explanation in {target_name} covering:
+1. **Word structure** — etymology, roots, how the word is formed (prefixes, suffixes, particles)
+2. **Usage patterns** — when and how this word is commonly used
+3. **Example sentences** — 2-3 additional examples with {target_name} translations
+4. **Related words** — similar or related vocabulary
+
+Use markdown formatting (bold, bullet points). Keep it concise — no more than 200 words.
+Return ONLY the explanation text, no preamble or quotes."""
+
+
 class LLMProvider(ABC):
     """Abstract base for LLM providers."""
 
     @abstractmethod
     async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> TranslationResult:
         """Translate a word and return structured data."""
+        ...
+
+    @abstractmethod
+    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> str:
+        """Generate a detailed explanation for a word. Returns markdown text."""
         ...
 
 
@@ -158,6 +185,40 @@ class AnthropicProvider(LLMProvider):
         raise RuntimeError("Unreachable")
 
 
+    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> str:
+        prompt = build_explanation_prompt(word, translation, source_lang, target_lang)
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = await self.client.messages.create(
+                    model=self.model,
+                    max_tokens=1024,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                text = ""
+                for block in response.content:
+                    if hasattr(block, "text"):
+                        text = block.text
+                        break
+                logger.debug("Anthropic explain response: %s", text)
+                return text.strip().strip("`").strip()
+            except (
+                anthropic.APIError,
+                anthropic.APIConnectionError,
+                anthropic.RateLimitError,
+            ) as e:
+                if attempt == MAX_RETRIES - 1:
+                    raise
+                delay = RETRY_DELAY_BASE * (2**attempt)
+                logger.warning(
+                    "Anthropic explain attempt %d failed: %s. Retrying in %.1fs",
+                    attempt + 1,
+                    e,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+        raise RuntimeError("Unreachable")
+
+
 class OpenAIProvider(LLMProvider):
     """Uses OpenAI API for translation."""
 
@@ -192,6 +253,38 @@ class OpenAIProvider(LLMProvider):
                 delay = RETRY_DELAY_BASE * (2**attempt)
                 logger.warning(
                     "OpenAI API attempt %d failed: %s. Retrying in %.1fs",
+                    attempt + 1,
+                    e,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+        raise RuntimeError("Unreachable")
+
+
+    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> str:
+        prompt = build_explanation_prompt(word, translation, source_lang, target_lang)
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    max_tokens=1024,
+                    messages=[
+                        {"role": "user", "content": prompt},
+                    ],
+                )
+                text = response.choices[0].message.content or ""
+                logger.debug("OpenAI explain response: %s", text)
+                return text.strip().strip("`").strip()
+            except (
+                openai.APIError,
+                openai.APIConnectionError,
+                openai.RateLimitError,
+            ) as e:
+                if attempt == MAX_RETRIES - 1:
+                    raise
+                delay = RETRY_DELAY_BASE * (2**attempt)
+                logger.warning(
+                    "OpenAI explain attempt %d failed: %s. Retrying in %.1fs",
                     attempt + 1,
                     e,
                     delay,

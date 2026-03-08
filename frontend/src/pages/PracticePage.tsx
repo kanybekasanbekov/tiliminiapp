@@ -9,6 +9,7 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import FlashCard from '../components/FlashCard'
 import DifficultyButtons from '../components/DifficultyButtons'
+import ExplainButton from '../components/ExplainButton'
 
 const SESSION_KEY = 'practice_session'
 const SESSION_MAX_AGE = 30 * 60 * 1000 // 30 minutes
@@ -254,7 +255,12 @@ export default function PracticePage() {
             Show Answer
           </Button>
         ) : (
-          <DifficultyButtons onRate={handleRate} disabled={reviewing} />
+          <>
+            <div style={{ marginBottom: '12px' }}>
+              <ExplainButton key={currentCard.id} cardId={currentCard.id} />
+            </div>
+            <DifficultyButtons onRate={handleRate} disabled={reviewing} />
+          </>
         )}
       </div>
     </div>

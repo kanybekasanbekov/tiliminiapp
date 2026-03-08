@@ -6,6 +6,7 @@ import type { Flashcard, Deck } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import FlashCard from '../components/FlashCard'
+import ExplainButton from '../components/ExplainButton'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getLanguageNames } from '../utils/languages'
 
@@ -446,6 +447,9 @@ export default function CardsListPage() {
                       Delete
                     </Button>
                   </div>
+                  <div style={{ marginTop: '10px' }}>
+                    <ExplainButton key={card.id} cardId={card.id} />
+                  </div>
                 </div>
               )}
             </div>
@@ -725,14 +729,19 @@ export default function CardsListPage() {
                   Show Answer
                 </Button>
               ) : (
-                <Button
-                  size="l"
-                  stretched
-                  mode="outline"
-                  onClick={() => setViewingCard(null)}
-                >
-                  Close
-                </Button>
+                <>
+                  <div style={{ marginBottom: '12px' }}>
+                    <ExplainButton key={viewingCard.id} cardId={viewingCard.id} />
+                  </div>
+                  <Button
+                    size="l"
+                    stretched
+                    mode="outline"
+                    onClick={() => setViewingCard(null)}
+                  >
+                    Close
+                  </Button>
+                </>
               )}
             </div>
           </div>

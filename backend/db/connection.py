@@ -46,11 +46,23 @@ CREATE TABLE IF NOT EXISTS decks (
 );
 """
 
+_EXPLANATIONS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS explanations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    card_id INTEGER NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL,
+    explanation TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (card_id) REFERENCES flashcards(id) ON DELETE CASCADE
+);
+"""
+
 _INDEXES = """
 CREATE INDEX IF NOT EXISTS idx_user_review ON flashcards(user_id, next_review);
 CREATE INDEX IF NOT EXISTS idx_user_source ON flashcards(user_id, language_pair, source_text);
 CREATE INDEX IF NOT EXISTS idx_deck_user ON decks(user_id, language_pair);
 CREATE INDEX IF NOT EXISTS idx_flashcard_deck ON flashcards(deck_id);
+CREATE INDEX IF NOT EXISTS idx_explanation_card ON explanations(card_id);
 """
 
 _MIGRATION_SETUP = """
@@ -217,6 +229,19 @@ async def _run_migration_4(conn: aiosqlite.Connection) -> None:
     await conn.commit()
 
 
+async def _run_migration_5(conn: aiosqlite.Connection) -> None:
+    """Migration 5: Create explanations table."""
+    cursor = await conn.execute("SELECT 1 FROM schema_versions WHERE version = 5")
+    if await cursor.fetchone():
+        return
+
+    await conn.executescript(_EXPLANATIONS_SCHEMA)
+    await conn.execute(
+        "INSERT INTO schema_versions (version, description) VALUES (5, 'create explanations table')"
+    )
+    await conn.commit()
+
+
 async def init_db(db_path: str) -> aiosqlite.Connection:
     """Open the database, enable WAL mode, and create schema if needed."""
     conn = await aiosqlite.connect(db_path)
@@ -233,6 +258,7 @@ async def init_db(db_path: str) -> aiosqlite.Connection:
     await _run_migration_2(conn)
     await _run_migration_3(conn)
     await _run_migration_4(conn)
+    await _run_migration_5(conn)
     await conn.executescript(_INDEXES)
     await conn.commit()
     return conn

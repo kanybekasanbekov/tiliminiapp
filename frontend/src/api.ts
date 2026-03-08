@@ -70,6 +70,14 @@ export const api = {
   deleteCard: (id: number) =>
     request<{ deleted: boolean }>(`/api/cards/${id}`, { method: 'DELETE' }),
 
+  getExplanation: (cardId: number) =>
+    request<{ explanation: string; card_id: number }>(`/api/cards/${cardId}/explanation`),
+
+  generateExplanation: (cardId: number) =>
+    request<{ explanation: string; card_id: number }>(`/api/cards/${cardId}/explanation`, {
+      method: 'POST',
+    }),
+
   // Decks API
   getDecks: (languagePair?: string) => {
     let url = '/api/decks'

@@ -4,6 +4,7 @@ import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
 import type { TranslationResult, Deck } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
+import ExplainButton from '../components/ExplainButton'
 import { getLanguageNames } from '../utils/languages'
 
 const SESSION_KEY = 'addcard_draft'
@@ -49,6 +50,7 @@ export default function AddCardPage() {
   const [editing, setEditing] = useState(false)
   const [editData, setEditData] = useState<TranslationResult | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const [savedCardId, setSavedCardId] = useState<number | null>(null)
   const [decks, setDecks] = useState<Deck[]>([])
   const [selectedDeckId, setSelectedDeckId] = useState<number | undefined>(undefined)
   const initialized = useRef(false)
@@ -90,6 +92,7 @@ export default function AddCardPage() {
     setLoading(true)
     setError('')
     setTranslation(null)
+    setSavedCardId(null)
     try {
       const result = await api.translateWord(word.trim(), activeLangPair)
       setTranslation(result)
@@ -115,7 +118,7 @@ export default function AddCardPage() {
     setError('')
     try {
       const savedWord = editData.source_text
-      await api.createCard({ ...editData, deck_id: selectedDeckId })
+      const card = await api.createCard({ ...editData, deck_id: selectedDeckId })
       // Persist the selected deck as preferred for next time
       if (selectedDeckId != null) {
         api.updatePreferences({ preferred_deck_id: selectedDeckId }).catch(() => {})
@@ -126,6 +129,7 @@ export default function AddCardPage() {
       setEditData(null)
       setEditing(false)
       clearDraft()
+      setSavedCardId(card.id)
       setSuccessMessage(`"${savedWord}" saved!`)
     } catch (e: any) {
       setError(e.message || 'Failed to save')
@@ -158,6 +162,11 @@ export default function AddCardPage() {
           fontWeight: 500,
         }}>
           {successMessage}
+          {savedCardId && (
+            <div style={{ marginTop: '10px' }}>
+              <ExplainButton cardId={savedCardId} />
+            </div>
+          )}
         </div>
       )}
 
