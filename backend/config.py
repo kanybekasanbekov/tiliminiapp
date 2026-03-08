@@ -16,14 +16,14 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 DATABASE_PATH = os.getenv("DATABASE_PATH", "tiliminiapp.db")
 
 # LLM Provider Configuration
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "anthropic").lower()
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
 
 # API Keys
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # Model Selection
-LLM_MODEL = os.getenv("LLM_MODEL", "claude-3-5-haiku-20241022")
+LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4.1-mini")
 
 # Frontend URL for CORS
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://your-frontend-domain.com")

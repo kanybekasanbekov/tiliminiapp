@@ -120,7 +120,7 @@ class OpenAIProvider(LLMProvider):
 
     def __init__(self) -> None:
         self.client = openai.AsyncOpenAI(api_key=config.OPENAI_API_KEY)
-        self.model = config.LLM_MODEL or "gpt-4o-mini"
+        self.model = config.LLM_MODEL or "gpt-4.1-mini"
 
     async def translate_korean(self, word: str) -> TranslationResult:
         for attempt in range(MAX_RETRIES):
