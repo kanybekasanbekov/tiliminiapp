@@ -30,3 +30,6 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://your-frontend-domain.com")
 
 # Logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+# Supported language pairs
+SUPPORTED_LANGUAGE_PAIRS = {"ko-en", "en-ko", "ko-ru", "en-ru"}

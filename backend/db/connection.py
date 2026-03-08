@@ -63,6 +63,7 @@ CREATE INDEX IF NOT EXISTS idx_user_source ON flashcards(user_id, language_pair,
 CREATE INDEX IF NOT EXISTS idx_deck_user ON decks(user_id, language_pair);
 CREATE INDEX IF NOT EXISTS idx_flashcard_deck ON flashcards(deck_id);
 CREATE INDEX IF NOT EXISTS idx_explanation_card ON explanations(card_id);
+CREATE INDEX IF NOT EXISTS idx_user_lang_review ON flashcards(user_id, language_pair, next_review);
 """
 
 _MIGRATION_SETUP = """

@@ -14,6 +14,7 @@ interface AppContextType {
   setDueCount: (count: number) => void
   activeLanguagePair: string
   setActiveLanguagePair: (pair: string) => void
+  languagePairVersion: number
 }
 
 const AppContext = createContext<AppContextType>({
@@ -23,11 +24,18 @@ const AppContext = createContext<AppContextType>({
   setDueCount: () => {},
   activeLanguagePair: 'ko-en',
   setActiveLanguagePair: () => {},
+  languagePairVersion: 0,
 })
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [dueCount, setDueCount] = useState(0)
-  const [activeLanguagePair, setActiveLanguagePair] = useState('ko-en')
+  const [activeLanguagePair, setActiveLanguagePairRaw] = useState('ko-en')
+  const [languagePairVersion, setLanguagePairVersion] = useState(0)
+
+  const setActiveLanguagePair = (pair: string) => {
+    setActiveLanguagePairRaw(pair)
+    setLanguagePairVersion((v) => v + 1)
+  }
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(
     WebApp.colorScheme || 'light'
   )
@@ -52,13 +60,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     api.getPreferences().then((prefs) => {
       if (prefs.active_language_pair) {
-        setActiveLanguagePair(prefs.active_language_pair)
+        setActiveLanguagePairRaw(prefs.active_language_pair)
       }
     }).catch(() => {})
   }, [])
 
   return (
-    <AppContext.Provider value={{ user, colorScheme, dueCount, setDueCount, activeLanguagePair, setActiveLanguagePair }}>
+    <AppContext.Provider value={{ user, colorScheme, dueCount, setDueCount, activeLanguagePair, setActiveLanguagePair, languagePairVersion }}>
       {children}
     </AppContext.Provider>
   )

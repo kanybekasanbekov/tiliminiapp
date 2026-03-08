@@ -8,10 +8,12 @@ import EmptyState from '../components/EmptyState'
 import FlashCard from '../components/FlashCard'
 import ExplainButton from '../components/ExplainButton'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useApp } from '../contexts/AppContext'
 import { getLanguageNames } from '../utils/languages'
 
 export default function CardsListPage() {
   const navigate = useNavigate()
+  const { activeLanguagePair, languagePairVersion } = useApp()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialDeckParam = useRef(searchParams.get('deck'))
 
@@ -64,7 +66,7 @@ export default function CardsListPage() {
   const loadDecks = async () => {
     setDecksLoading(true)
     try {
-      const data = await api.getDecks()
+      const data = await api.getDecks(activeLanguagePair)
       setDecks(data.decks)
     } catch {
       // ignore
@@ -76,7 +78,7 @@ export default function CardsListPage() {
   const loadCards = async (p: number, deckId?: number) => {
     setLoading(true)
     try {
-      const data = await api.getCards(p, 10, deckId)
+      const data = await api.getCards(p, 10, deckId, activeLanguagePair)
       setCards(data.cards)
       setTotalPages(data.total_pages)
       setTotal(data.total)
@@ -90,11 +92,12 @@ export default function CardsListPage() {
 
   useEffect(() => {
     loadDecks()
-  }, [])
+    setSelectedDeckId(undefined)
+  }, [languagePairVersion])
 
   useEffect(() => {
     loadCards(1, selectedDeckId)
-  }, [selectedDeckId])
+  }, [selectedDeckId, languagePairVersion])
 
   const handleChipTap = (deckId: number | undefined) => {
     if (deckId === selectedDeckId && deckId != null) {
@@ -115,7 +118,7 @@ export default function CardsListPage() {
     if (!createName.trim()) return
     setCreateSaving(true)
     try {
-      const newDeck = await api.createDeck({ name: createName.trim() })
+      const newDeck = await api.createDeck({ name: createName.trim(), language_pair: activeLanguagePair })
       WebApp.HapticFeedback.notificationOccurred('success')
       setShowCreateModal(false)
       setCreateName('')

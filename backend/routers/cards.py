@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from backend.auth import ensure_user
+from backend.config import SUPPORTED_LANGUAGE_PAIRS
 from backend.db import models
 
 router = APIRouter()
@@ -77,14 +78,17 @@ async def list_cards(
     page: int = 1,
     per_page: int = 10,
     deck_id: int | None = None,
+    language_pair: str | None = None,
     user: dict[str, Any] = Depends(ensure_user),
 ):
-    """List user's flashcards with pagination, optionally filtered by deck."""
+    """List user's flashcards with pagination, optionally filtered by deck and/or language pair."""
+    if language_pair is not None and language_pair not in SUPPORTED_LANGUAGE_PAIRS:
+        raise HTTPException(status_code=400, detail=f"Unsupported language pair: {language_pair}")
     db = request.app.state.db
     user_id = user["id"]
     offset = (page - 1) * per_page
 
-    cards, total = await models.get_all_flashcards(db, user_id, offset, per_page, deck_id=deck_id)
+    cards, total = await models.get_all_flashcards(db, user_id, offset, per_page, deck_id=deck_id, language_pair=language_pair)
     total_pages = (total + per_page - 1) // per_page
 
     return {

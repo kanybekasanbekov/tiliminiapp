@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react'
 import { Section, Cell } from '@telegram-apps/telegram-ui'
+import { useApp } from '../contexts/AppContext'
 import { api } from '../api'
 import type { UserStats } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 export default function StatsPage() {
+  const { activeLanguagePair, languagePairVersion } = useApp()
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.getStats()
+    setLoading(true)
+    api.getStats(activeLanguagePair)
       .then(setStats)
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [activeLanguagePair, languagePairVersion])
 
   if (loading) return <LoadingSpinner text="Loading stats..." />
 

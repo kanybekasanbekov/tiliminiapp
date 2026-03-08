@@ -3,18 +3,20 @@ import { useNavigate } from 'react-router-dom'
 import { Section, Cell, Badge } from '@telegram-apps/telegram-ui'
 import { useApp } from '../contexts/AppContext'
 import { api } from '../api'
+import { getLanguageNames } from '../utils/languages'
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { user, dueCount, setDueCount } = useApp()
+  const { user, dueCount, setDueCount, activeLanguagePair, languagePairVersion } = useApp()
   const [streak, setStreak] = useState(0)
+  const lang = getLanguageNames(activeLanguagePair)
 
   useEffect(() => {
-    api.getStats().then((stats) => {
+    api.getStats(activeLanguagePair).then((stats) => {
       setDueCount(stats.due)
       setStreak(stats.current_streak)
     }).catch(() => {})
-  }, [setDueCount])
+  }, [setDueCount, activeLanguagePair, languagePairVersion])
 
   return (
     <div className="page">
@@ -24,7 +26,7 @@ export default function HomePage() {
             Hello{user ? `, ${user.first_name}` : ''}!
           </h1>
           <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '15px' }}>
-            Ready to learn?
+            Ready to learn? <span style={{ fontSize: '13px', fontWeight: 600 }}>{lang.source} → {lang.target}</span>
           </p>
         </div>
         <button

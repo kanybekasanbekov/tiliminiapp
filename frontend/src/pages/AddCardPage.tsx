@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Section, Input, Button, Cell } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
+import { useApp } from '../contexts/AppContext'
 import type { TranslationResult, Deck } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ExplainButton from '../components/ExplainButton'
@@ -42,6 +43,7 @@ function clearDraft() {
 }
 
 export default function AddCardPage() {
+  const { activeLanguagePair } = useApp()
   const [word, setWord] = useState('')
   const [translation, setTranslation] = useState<TranslationResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -55,9 +57,9 @@ export default function AddCardPage() {
   const [selectedDeckId, setSelectedDeckId] = useState<number | undefined>(undefined)
   const initialized = useRef(false)
 
-  // Load decks and user preferred deck
+  // Load decks and user preferred deck, scoped to active language pair
   useEffect(() => {
-    Promise.all([api.getDecks(), api.getPreferences()]).then(([decksData, prefs]) => {
+    Promise.all([api.getDecks(activeLanguagePair), api.getPreferences()]).then(([decksData, prefs]) => {
       setDecks(decksData.decks)
       const preferred = prefs.preferred_deck_id
         ? decksData.decks.find((d) => d.id === prefs.preferred_deck_id)
@@ -65,7 +67,7 @@ export default function AddCardPage() {
       const fallback = decksData.decks.find((d) => d.is_default)
       setSelectedDeckId((preferred || fallback)?.id)
     }).catch(() => {})
-  }, [])
+  }, [activeLanguagePair])
 
   // Restore draft on mount
   useEffect(() => {
@@ -94,7 +96,7 @@ export default function AddCardPage() {
     setTranslation(null)
     setSavedCardId(null)
     try {
-      const result = await api.translateWord(word.trim(), activeLangPair)
+      const result = await api.translateWord(word.trim(), activeLanguagePair)
       setTranslation(result)
       setEditData(result)
       WebApp.HapticFeedback.impactOccurred('light')
@@ -118,7 +120,7 @@ export default function AddCardPage() {
     setError('')
     try {
       const savedWord = editData.source_text
-      const card = await api.createCard({ ...editData, deck_id: selectedDeckId })
+      const card = await api.createCard({ ...editData, language_pair: activeLanguagePair, deck_id: selectedDeckId })
       // Persist the selected deck as preferred for next time
       if (selectedDeckId != null) {
         api.updatePreferences({ preferred_deck_id: selectedDeckId }).catch(() => {})
@@ -139,8 +141,7 @@ export default function AddCardPage() {
     }
   }
 
-  const activeLangPair = decks.find(d => d.id === selectedDeckId)?.language_pair || 'ko-en'
-  const lang = getLanguageNames(activeLangPair)
+  const lang = getLanguageNames(activeLanguagePair)
 
   return (
     <div className="page">

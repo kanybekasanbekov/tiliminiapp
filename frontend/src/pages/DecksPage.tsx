@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { Section, Cell, Button, Input } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
+import { useApp } from '../contexts/AppContext'
 import type { Deck } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 
 export default function DecksPage() {
   const navigate = useNavigate()
+  const { activeLanguagePair, languagePairVersion } = useApp()
   const [decks, setDecks] = useState<Deck[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -18,7 +20,7 @@ export default function DecksPage() {
 
   const loadDecks = async () => {
     try {
-      const [data, prefs] = await Promise.all([api.getDecks(), api.getPreferences()])
+      const [data, prefs] = await Promise.all([api.getDecks(activeLanguagePair), api.getPreferences()])
       setDecks(data.decks)
       setPreferredDeckId(prefs.preferred_deck_id)
     } catch {
@@ -30,13 +32,13 @@ export default function DecksPage() {
 
   useEffect(() => {
     loadDecks()
-  }, [])
+  }, [languagePairVersion])
 
   const handleCreate = async () => {
     if (!newName.trim()) return
     setSaving(true)
     try {
-      await api.createDeck({ name: newName.trim() })
+      await api.createDeck({ name: newName.trim(), language_pair: activeLanguagePair })
       WebApp.HapticFeedback.notificationOccurred('success')
       setNewName('')
       setCreating(false)

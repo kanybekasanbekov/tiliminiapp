@@ -46,15 +46,16 @@ export const api = {
       body: JSON.stringify({ word, language_pair: languagePair }),
     }),
 
-  createCard: (card: Omit<TranslationResult, never> & { deck_id?: number }) =>
+  createCard: (card: Omit<TranslationResult, never> & { deck_id?: number; language_pair?: string }) =>
     request<Flashcard>('/api/cards', {
       method: 'POST',
       body: JSON.stringify(card),
     }),
 
-  getCards: (page = 1, perPage = 10, deckId?: number) => {
+  getCards: (page = 1, perPage = 10, deckId?: number, languagePair?: string) => {
     let url = `/api/cards?page=${page}&per_page=${perPage}`
     if (deckId != null) url += `&deck_id=${deckId}`
+    if (languagePair) url += `&language_pair=${languagePair}`
     return request<PaginatedCards>(url)
   },
 
@@ -110,8 +111,11 @@ export const api = {
     }),
 
   // Practice API
-  getDueCards: (limit = 20) =>
-    request<DueCardsResponse>(`/api/practice/due?limit=${limit}`),
+  getDueCards: (limit = 20, languagePair?: string) => {
+    let url = `/api/practice/due?limit=${limit}`
+    if (languagePair) url += `&language_pair=${languagePair}`
+    return request<DueCardsResponse>(url)
+  },
 
   submitReview: (cardId: number, difficulty: Difficulty) =>
     request<ReviewResponse>('/api/practice/review', {
@@ -120,7 +124,11 @@ export const api = {
     }),
 
   // Stats API
-  getStats: () => request<UserStats>('/api/stats'),
+  getStats: (languagePair?: string) => {
+    let url = '/api/stats'
+    if (languagePair) url += `?language_pair=${languagePair}`
+    return request<UserStats>(url)
+  },
 
   // User Preferences API
   getPreferences: () => request<UserPreferences>('/api/user/preferences'),

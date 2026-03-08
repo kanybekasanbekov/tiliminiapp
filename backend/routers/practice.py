@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from backend.auth import ensure_user
+from backend.config import SUPPORTED_LANGUAGE_PAIRS
 from backend.db import models
 from backend.services.srs import SRSResult, calculate_srs, difficulty_to_quality
 
@@ -21,16 +22,19 @@ class ReviewRequest(BaseModel):
 async def get_due_cards(
     request: Request,
     limit: int = 20,
+    language_pair: str | None = None,
     user: dict[str, Any] = Depends(ensure_user),
 ):
-    """Get cards due for review."""
+    """Get cards due for review, optionally scoped to a language pair."""
+    if language_pair is not None and language_pair not in SUPPORTED_LANGUAGE_PAIRS:
+        raise HTTPException(status_code=400, detail=f"Unsupported language pair: {language_pair}")
     db = request.app.state.db
     user_id = user["id"]
 
-    cards = await models.get_due_flashcards(db, user_id, limit)
+    cards = await models.get_due_flashcards(db, user_id, limit, language_pair=language_pair)
 
     # Get total due count
-    stats = await models.get_user_stats(db, user_id)
+    stats = await models.get_user_stats(db, user_id, language_pair=language_pair)
 
     return {
         "cards": cards,
@@ -83,8 +87,8 @@ async def submit_review(
     # Update daily practice streak
     await models.update_streak(db, user_id)
 
-    # Get remaining due count
-    stats = await models.get_user_stats(db, user_id)
+    # Get remaining due count scoped to the card's language pair
+    stats = await models.get_user_stats(db, user_id, language_pair=card.get("language_pair"))
 
     return {
         "next_review": result.next_review.strftime("%Y-%m-%d %H:%M:%S"),

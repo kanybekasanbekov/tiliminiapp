@@ -58,7 +58,7 @@ function clearSession() {
 
 export default function PracticePage() {
   const navigate = useNavigate()
-  const { setDueCount } = useApp()
+  const { setDueCount, activeLanguagePair, languagePairVersion } = useApp()
   const [cards, setCards] = useState<Flashcard[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showAnswer, setShowAnswer] = useState(false)
@@ -91,7 +91,7 @@ export default function PracticePage() {
 
     async function fetchCards() {
       try {
-        const data = await api.getDueCards(20)
+        const data = await api.getDueCards(20, activeLanguagePair)
         setCards(data.cards)
         setTotalDue(data.total_due)
         setDueCount(data.total_due)
@@ -109,6 +109,26 @@ export default function PracticePage() {
 
     fetchCards()
   }, [setDueCount])
+
+  // Re-fetch when language pair changes mid-session
+  useEffect(() => {
+    if (languagePairVersion === 0) return // skip initial
+    clearSession()
+    setCards([])
+    setCurrentIndex(0)
+    setReviewed(0)
+    setTotalDue(0)
+    setShowAnswer(false)
+    setSessionComplete(false)
+    setLoading(true)
+    api.getDueCards(20, activeLanguagePair).then((data) => {
+      setCards(data.cards)
+      setTotalDue(data.total_due)
+      setDueCount(data.total_due)
+      if (data.cards.length === 0) setSessionComplete(true)
+      else setShowSide(getSideForMode(practiceMode))
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [languagePairVersion])
 
   // Persist session state on changes
   useEffect(() => {
