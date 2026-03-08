@@ -4,6 +4,7 @@ import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
 import type { TranslationResult, Deck } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { getLanguageNames } from '../utils/languages'
 
 const SESSION_KEY = 'addcard_draft'
 const SESSION_MAX_AGE = 30 * 60 * 1000 // 30 minutes
@@ -134,12 +135,15 @@ export default function AddCardPage() {
     }
   }
 
+  const activeLangPair = decks.find(d => d.id === selectedDeckId)?.language_pair || 'ko-en'
+  const lang = getLanguageNames(activeLangPair)
+
   return (
     <div className="page">
       <div style={{ padding: '24px 16px 16px' }}>
         <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Add Card</h1>
         <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '14px' }}>
-          Enter a Korean word to translate
+          {`Enter a ${lang.source} word to translate`}
         </p>
       </div>
 
@@ -162,7 +166,7 @@ export default function AddCardPage() {
           <Input
             value={word}
             onChange={(e) => setWord(e.target.value)}
-            placeholder="Enter Korean word (e.g. 안녕하세요)"
+            placeholder={`Enter ${lang.source} word`}
             onKeyDown={(e) => e.key === 'Enter' && handleTranslate()}
             disabled={loading}
           />
@@ -197,22 +201,22 @@ export default function AddCardPage() {
       {translation && editData && (
         <>
           <Section header="Translation Result">
-            <Cell subtitle="Korean">
+            <Cell subtitle={lang.source}>
               <span style={{ fontSize: '18px' }}>{editData.source_text}</span>
             </Cell>
             {editing ? (
               <div style={{ padding: '8px 16px' }}>
-                <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>English</label>
+                <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>{lang.target}</label>
                 <Input
                   value={editData.target_text}
                   onChange={(e) => setEditData({ ...editData, target_text: e.target.value })}
                 />
-                <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', margin: '12px 0 4px' }}>Example (Korean)</label>
+                <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', margin: '12px 0 4px' }}>{`Example (${lang.source})`}</label>
                 <Input
                   value={editData.example_source}
                   onChange={(e) => setEditData({ ...editData, example_source: e.target.value })}
                 />
-                <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', margin: '12px 0 4px' }}>Example (English)</label>
+                <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', margin: '12px 0 4px' }}>{`Example (${lang.target})`}</label>
                 <Input
                   value={editData.example_target}
                   onChange={(e) => setEditData({ ...editData, example_target: e.target.value })}
@@ -223,9 +227,9 @@ export default function AddCardPage() {
               </div>
             ) : (
               <>
-                <Cell subtitle="English">{editData.target_text}</Cell>
-                <Cell subtitle="Example (Korean)">{editData.example_source}</Cell>
-                <Cell subtitle="Example (English)">{editData.example_target}</Cell>
+                <Cell subtitle={lang.target}>{editData.target_text}</Cell>
+                <Cell subtitle={`Example (${lang.source})`}>{editData.example_source}</Cell>
+                <Cell subtitle={`Example (${lang.target})`}>{editData.example_target}</Cell>
               </>
             )}
           </Section>

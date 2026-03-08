@@ -1,4 +1,5 @@
 import type { Flashcard } from '../types'
+import { getLanguageNames } from '../utils/languages'
 
 interface FlashCardProps {
   card: Flashcard
@@ -7,11 +8,12 @@ interface FlashCardProps {
 }
 
 export default function FlashCard({ card, showSide, revealed }: FlashCardProps) {
+  const lang = getLanguageNames(card.language_pair)
   const question = showSide === 'source' ? card.source_text : card.target_text
-  const questionLabel = showSide === 'source' ? 'Korean' : 'English'
+  const questionLabel = showSide === 'source' ? lang.source : lang.target
   const prompt = showSide === 'source'
-    ? 'What does this mean in English?'
-    : 'How do you say this in Korean?'
+    ? `What does this mean in ${lang.target}?`
+    : `How do you say this in ${lang.source}?`
 
   return (
     <div style={{
@@ -66,7 +68,7 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
                 textTransform: 'uppercase',
                 letterSpacing: '1px',
               }}>
-                Korean
+                {lang.source}
               </span>
               <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '4px' }}>
                 {card.source_text}
@@ -80,7 +82,7 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
                 textTransform: 'uppercase',
                 letterSpacing: '1px',
               }}>
-                English
+                {lang.target}
               </span>
               <div style={{ fontSize: '20px', fontWeight: 600, marginTop: '4px' }}>
                 {card.target_text}

@@ -7,6 +7,7 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import FlashCard from '../components/FlashCard'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { getLanguageNames } from '../utils/languages'
 
 export default function CardsListPage() {
   const navigate = useNavigate()
@@ -30,6 +31,8 @@ export default function CardsListPage() {
   // View overlay state
   const [viewingCard, setViewingCard] = useState<Flashcard | null>(null)
   const [viewRevealed, setViewRevealed] = useState(false)
+
+  const editLang = editingCard ? getLanguageNames(editingCard.language_pair) : { source: '', target: '' }
 
   const loadCards = async (p: number) => {
     setLoading(true)
@@ -111,7 +114,7 @@ export default function CardsListPage() {
         <EmptyState
           icon="🗂"
           title="No Cards Yet"
-          description="Add your first Korean flashcard to get started!"
+          description="Add your first flashcard to get started!"
           action={{ label: 'Add Card', onClick: () => navigate('/add') }}
         />
       </div>
@@ -298,7 +301,7 @@ export default function CardsListPage() {
 
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
-                English
+                {editLang.target}
               </label>
               <Input
                 value={editForm.target_text}
@@ -307,7 +310,7 @@ export default function CardsListPage() {
             </div>
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
-                Example (Korean)
+                {`Example (${editLang.source})`}
               </label>
               <Input
                 value={editForm.example_source}
@@ -316,7 +319,7 @@ export default function CardsListPage() {
             </div>
             <div style={{ marginBottom: '20px' }}>
               <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
-                Example (English)
+                {`Example (${editLang.target})`}
               </label>
               <Input
                 value={editForm.example_target}

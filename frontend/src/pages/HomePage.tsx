@@ -21,7 +21,7 @@ export default function HomePage() {
           Hello{user ? `, ${user.first_name}` : ''}!
         </h1>
         <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '15px' }}>
-          Ready to learn Korean?
+          Ready to learn?
         </p>
       </div>
 
@@ -47,7 +47,7 @@ export default function HomePage() {
         <Cell
           onClick={() => navigate('/add')}
           before={<span style={{ fontSize: '24px' }}>➕</span>}
-          subtitle="Translate and save a Korean word"
+          subtitle="Translate and save a new word"
         >
           Add New Card
         </Cell>
