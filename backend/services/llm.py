@@ -56,15 +56,19 @@ def build_translation_prompt(source_lang: str, target_lang: str) -> str:
 
     extra_line = f"\n   {extra}" if extra else ""
 
-    return f"""You are a {source_name} language expert. Given a {source_name} word, phrase, or sentence, provide:
-1. The {source_name} word, phrase, or sentence (cleaned/corrected if needed)
-2. {target_name} translation. If the word has multiple meanings, provide the {target_name} translation for each meaning.
-3. An example sentence in {source_name} using this word, and its {target_name} translation.{extra_line}
+    return f"""You are a {source_name}-{target_name} language expert. The user may input a word, phrase, or sentence in either {source_name} or {target_name}. Detect the input language and provide:
+1. `source_text`: The word/phrase in {source_name} (cleaned/corrected if needed)
+2. `target_text`: The translation in {target_name}. If the word has multiple meanings, provide the translation for each meaning.
+3. `example_source`: An example sentence in {source_name} using this word.
+4. `example_target`: The {target_name} translation of the example sentence.
+
+If the input is in {target_name}, translate it to {source_name} for `source_text` and use the original input as `target_text`.
+If the input is in {source_name}, use it as `source_text` and translate to {target_name} for `target_text`.{extra_line}
 
 Respond with ONLY a raw JSON object, no markdown, no code fences, no explanation:
 {{"source_text": "...", "target_text": "...", "example_source": "...", "example_target": "..."}}
 
-If the word is not a valid {source_name} word, respond with "Invalid word"."""
+If the word is not valid in either {source_name} or {target_name}, respond with "Invalid word"."""
 
 
 def _extract_json(text: str) -> dict:

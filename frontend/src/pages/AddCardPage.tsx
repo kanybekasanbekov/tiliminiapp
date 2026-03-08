@@ -143,7 +143,7 @@ export default function AddCardPage() {
       <div style={{ padding: '24px 16px 16px' }}>
         <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Add Card</h1>
         <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '14px' }}>
-          {`Enter a ${lang.source} word to translate`}
+          {`Enter a word in ${lang.source} or ${lang.target}`}
         </p>
       </div>
 
@@ -166,7 +166,7 @@ export default function AddCardPage() {
           <Input
             value={word}
             onChange={(e) => setWord(e.target.value)}
-            placeholder={`Enter ${lang.source} word`}
+            placeholder={`${lang.source} or ${lang.target} word`}
             onKeyDown={(e) => e.key === 'Enter' && handleTranslate()}
             disabled={loading}
           />
