@@ -13,12 +13,21 @@ import DifficultyButtons from '../components/DifficultyButtons'
 const SESSION_KEY = 'practice_session'
 const SESSION_MAX_AGE = 30 * 60 * 1000 // 30 minutes
 
+type PracticeMode = 'source-to-target' | 'target-to-source' | 'random'
+
+function getSideForMode(mode: PracticeMode): 'source' | 'target' {
+  if (mode === 'source-to-target') return 'source'
+  if (mode === 'target-to-source') return 'target'
+  return Math.random() > 0.5 ? 'source' : 'target'
+}
+
 interface SavedSession {
   cards: Flashcard[]
   currentIndex: number
   reviewed: number
   totalDue: number
   showSide: 'source' | 'target'
+  practiceMode: PracticeMode
   timestamp: number
 }
 
@@ -58,6 +67,7 @@ export default function PracticePage() {
   const [totalDue, setTotalDue] = useState(0)
   const [reviewed, setReviewed] = useState(0)
   const [sessionComplete, setSessionComplete] = useState(false)
+  const [practiceMode, setPracticeMode] = useState<PracticeMode>('source-to-target')
   const initialized = useRef(false)
 
   // Init: try restoring from sessionStorage, otherwise fetch from API
@@ -72,6 +82,7 @@ export default function PracticePage() {
       setReviewed(saved.reviewed)
       setTotalDue(saved.totalDue)
       setShowSide(saved.showSide)
+      setPracticeMode(saved.practiceMode ?? 'source-to-target')
       setDueCount(saved.totalDue - saved.reviewed)
       setLoading(false)
       return
@@ -86,7 +97,7 @@ export default function PracticePage() {
         if (data.cards.length === 0) {
           setSessionComplete(true)
         } else {
-          setShowSide(Math.random() > 0.5 ? 'source' : 'target')
+          setShowSide(getSideForMode(practiceMode))
         }
       } catch {
         // ignore
@@ -101,13 +112,20 @@ export default function PracticePage() {
   // Persist session state on changes
   useEffect(() => {
     if (loading || sessionComplete || cards.length === 0) return
-    saveSession({ cards, currentIndex, reviewed, totalDue, showSide })
-  }, [cards, currentIndex, reviewed, totalDue, showSide, loading, sessionComplete])
+    saveSession({ cards, currentIndex, reviewed, totalDue, showSide, practiceMode })
+  }, [cards, currentIndex, reviewed, totalDue, showSide, practiceMode, loading, sessionComplete])
 
   // Clear storage when session completes
   useEffect(() => {
     if (sessionComplete) clearSession()
   }, [sessionComplete])
+
+  // Update showSide when practiceMode changes mid-session (only if answer not revealed)
+  useEffect(() => {
+    if (!showAnswer && cards.length > 0 && !sessionComplete) {
+      setShowSide(getSideForMode(practiceMode))
+    }
+  }, [practiceMode])
 
   const currentCard = cards[currentIndex]
 
@@ -130,7 +148,7 @@ export default function PracticePage() {
       if (currentIndex + 1 < cards.length) {
         setCurrentIndex((i) => i + 1)
         setShowAnswer(false)
-        setShowSide(Math.random() > 0.5 ? 'source' : 'target')
+        setShowSide(getSideForMode(practiceMode))
       } else {
         setSessionComplete(true)
       }
@@ -167,6 +185,31 @@ export default function PracticePage() {
   return (
     <div className="page">
       <div style={{ padding: '16px 16px 8px' }}>
+        {/* Practice mode selector */}
+        <div style={{ display: 'flex', marginBottom: '10px', borderRadius: '8px', overflow: 'hidden' }}>
+          {([
+            { mode: 'source-to-target' as PracticeMode, label: 'Source\u2192Target' },
+            { mode: 'target-to-source' as PracticeMode, label: 'Target\u2192Source' },
+            { mode: 'random' as PracticeMode, label: 'Random' },
+          ]).map(({ mode, label }, i) => (
+            <button
+              key={mode}
+              onClick={() => setPracticeMode(mode)}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                fontSize: '12px',
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: practiceMode === mode ? 'var(--tg-button-color)' : 'var(--tg-secondary-bg-color)',
+                color: practiceMode === mode ? '#fff' : 'var(--tg-hint-color)',
+                borderRadius: i === 0 ? '8px 0 0 8px' : i === 2 ? '0 8px 8px 0' : '0',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
