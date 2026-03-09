@@ -41,7 +41,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     await update.message.reply_text(
         "Welcome to Tili! Learn languages with AI-powered flashcards.\n\n"
-        "Tap the button below to open the app:",
+        "Tap the button below to open the app, or type /help for more info.",
         reply_markup=keyboard,
     )
 
