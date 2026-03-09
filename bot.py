@@ -40,7 +40,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     ])
 
     await update.message.reply_text(
-        "Welcome to Tili! Learn Korean with AI-powered flashcards.\n\n"
+        "Welcome to Tili! Learn languages with AI-powered flashcards.\n\n"
         "Tap the button below to open the app:",
         reply_markup=keyboard,
     )
@@ -52,12 +52,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     await update.message.reply_text(
-        "Tili - Korean Flashcard Mini App\n\n"
+        "Tili - Language Learning Mini App\n\n"
         "How to use:\n"
         "1. Tap 'Open Tili' to launch the app\n"
-        "2. Add Korean words — AI translates them instantly\n"
+        "2. Add words in any supported language — AI translates them instantly\n"
         "3. Practice with spaced repetition flashcards\n"
-        "4. Track your progress in Statistics\n\n"
+        "4. Organize cards into decks and track your streak\n\n"
+        "Supported: English, Korean, Russian.\n"
         "The app uses the SM-2 algorithm (same as Anki) to schedule reviews.",
     )
 
