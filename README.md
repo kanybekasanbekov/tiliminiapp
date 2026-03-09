@@ -92,7 +92,7 @@ TELEGRAM_BOT_TOKEN=your-bot-token-from-botfather
 LLM_PROVIDER=anthropic
 ANTHROPIC_API_KEY=your-anthropic-api-key
 LLM_MODEL=claude-haiku-4-5-20251001
-DATABASE_PATH=flashcards.db
+DATABASE_PATH=database/flashcards.db
 FRONTEND_URL=http://localhost:5173
 ```
 
@@ -163,7 +163,7 @@ The frontend will be available at `http://localhost:5173`. The Vite dev server a
 | `ANTHROPIC_API_KEY` | If using Anthropic | — | Anthropic API key |
 | `OPENAI_API_KEY` | If using OpenAI | — | OpenAI API key |
 | `LLM_MODEL` | No | `claude-haiku-4-5-20251001` | Model name for selected provider |
-| `DATABASE_PATH` | No | `flashcards.db` | Path to SQLite database file |
+| `DATABASE_PATH` | No | `database/flashcards.db` | Path to SQLite database file |
 | `FRONTEND_URL` | No | `http://localhost:5173` | Frontend URL for CORS |
 | `LOG_LEVEL` | No | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
 

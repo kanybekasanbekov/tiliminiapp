@@ -1,6 +1,7 @@
 # Python
 .env
-*.db*
+database/*.db-shm
+database/*.db-wal
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -12,6 +13,8 @@ venv/
 node_modules/
 dist/
 .cache/
+
+*.vite/
 
 # IDE
 .vscode/

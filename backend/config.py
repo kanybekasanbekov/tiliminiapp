@@ -13,7 +13,7 @@ load_dotenv(_env_path, override=True)
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
 # Database
-DATABASE_PATH = os.getenv("DATABASE_PATH", "tiliminiapp.db")
+DATABASE_PATH = os.getenv("DATABASE_PATH", "database/flashcards.db")
 
 # LLM Provider Configuration
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
