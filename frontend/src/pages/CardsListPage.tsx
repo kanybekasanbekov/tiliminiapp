@@ -7,6 +7,7 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import FlashCard from '../components/FlashCard'
 import ExplainButton from '../components/ExplainButton'
+import MoveDeckModal from '../components/MoveDeckModal'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
 import { getLanguageNames } from '../utils/languages'
@@ -61,6 +62,9 @@ export default function CardsListPage() {
   const [editForm, setEditForm] = useState({ target_text: '', example_source: '', example_target: '' })
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
+
+  // Move card modal state
+  const [movingCard, setMovingCard] = useState<Flashcard | null>(null)
 
   // View overlay state
   const [viewingCard, setViewingCard] = useState<Flashcard | null>(null)
@@ -554,6 +558,16 @@ export default function CardsListPage() {
                             mode="outline"
                             onClick={(e) => {
                               e.stopPropagation()
+                              setMovingCard(card)
+                            }}
+                          >
+                            {t('cards.move')}
+                          </Button>
+                          <Button
+                            size="s"
+                            mode="outline"
+                            onClick={(e) => {
+                              e.stopPropagation()
                               handleDelete(card)
                             }}
                             style={{ color: '#ff3b30' }}
@@ -815,6 +829,22 @@ export default function CardsListPage() {
         </div>
       )}
 
+      {/* Move Card Modal */}
+      {movingCard && (
+        <MoveDeckModal
+          cardId={movingCard.id}
+          currentDeckId={movingCard.deck_id}
+          decks={decks}
+          onClose={() => setMovingCard(null)}
+          onMoved={() => {
+            setMovingCard(null)
+            loadCards(page, selectedDeckId)
+            loadDecks()
+            if (isSearchActive) loadSearchResults(searchQuery, searchPage)
+          }}
+        />
+      )}
+
       {/* View Card Overlay */}
       {viewingCard && (
         <div
@@ -831,12 +861,61 @@ export default function CardsListPage() {
           }}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
               <div style={{ width: '100%' }}>
                 <FlashCard card={viewingCard} showSide="source" revealed={viewRevealed} />
               </div>
             </div>
-            <div style={{ paddingTop: '16px' }}>
+
+            {/* Action buttons right below card */}
+            {viewRevealed && (
+              <div style={{ paddingTop: '16px', display: 'flex', gap: '8px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <ExplainButton key={viewingCard.id} cardId={viewingCard.id} />
+                <button
+                  onClick={() => { openEdit(viewingCard); setViewingCard(null) }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    border: '1.5px solid var(--tg-button-color)',
+                    background: 'transparent',
+                    color: 'var(--tg-button-color)',
+                    fontFamily: 'inherit',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {t('cards.edit')}
+                </button>
+                <button
+                  onClick={() => setMovingCard(viewingCard)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    border: '1.5px solid var(--tg-button-color)',
+                    background: 'transparent',
+                    color: 'var(--tg-button-color)',
+                    fontFamily: 'inherit',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {t('cards.move')}
+                </button>
+              </div>
+            )}
+
+            {/* Close/Show Answer pushed to bottom */}
+            <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
               {!viewRevealed ? (
                 <Button
                   size="l"
@@ -846,19 +925,14 @@ export default function CardsListPage() {
                   {t('cards.showAnswer')}
                 </Button>
               ) : (
-                <>
-                  <div style={{ marginBottom: '12px' }}>
-                    <ExplainButton key={viewingCard.id} cardId={viewingCard.id} />
-                  </div>
-                  <Button
-                    size="l"
-                    stretched
-                    mode="outline"
-                    onClick={() => setViewingCard(null)}
-                  >
-                    {t('cards.close')}
-                  </Button>
-                </>
+                <Button
+                  size="l"
+                  stretched
+                  mode="outline"
+                  onClick={() => setViewingCard(null)}
+                >
+                  {t('cards.close')}
+                </Button>
               )}
             </div>
           </div>
