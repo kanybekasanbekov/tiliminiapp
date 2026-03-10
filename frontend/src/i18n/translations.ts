@@ -88,6 +88,11 @@ export const translations: Record<string, TranslationMap> = {
     'cards.close': 'Close',
     'cards.confirmDeleteDeck': 'Delete "{{name}}"? Cards will be moved to the default deck.',
     'cards.confirmDeleteCard': 'Delete "{{name}}"?',
+    'cards.search': 'Search cards...',
+    'cards.searchResults': '{{count}} result{{s}} found',
+    'cards.noSearchResults': 'No Cards Found',
+    'cards.noSearchResultsSub': 'Try a different search term',
+    'cards.deck': 'Deck',
 
     // Decks
     'decks.loading': 'Loading decks...',
@@ -257,6 +262,11 @@ export const translations: Record<string, TranslationMap> = {
     'cards.close': 'Закрыть',
     'cards.confirmDeleteDeck': 'Удалить «{{name}}»? Карточки будут перемещены в колоду по умолчанию.',
     'cards.confirmDeleteCard': 'Удалить «{{name}}»?',
+    'cards.search': 'Поиск карточек...',
+    'cards.searchResults': '{{count}} результат{{s}} найдено',
+    'cards.noSearchResults': 'Карточки не найдены',
+    'cards.noSearchResultsSub': 'Попробуйте другой запрос',
+    'cards.deck': 'Колода',
 
     // Decks
     'decks.loading': 'Загрузка колод...',
@@ -426,6 +436,11 @@ export const translations: Record<string, TranslationMap> = {
     'cards.close': '닫기',
     'cards.confirmDeleteDeck': '"{{name}}" 삭제하시겠습니까? 카드는 기본 덱으로 이동됩니다.',
     'cards.confirmDeleteCard': '"{{name}}" 삭제하시겠습니까?',
+    'cards.search': '카드 검색...',
+    'cards.searchResults': '{{count}}개 결과',
+    'cards.noSearchResults': '검색 결과 없음',
+    'cards.noSearchResultsSub': '다른 검색어를 시도하세요',
+    'cards.deck': '덱',
 
     // Decks
     'decks.loading': '덱 로딩 중...',

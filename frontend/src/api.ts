@@ -59,6 +59,12 @@ export const api = {
     return request<PaginatedCards>(url)
   },
 
+  searchCards: (query: string, page = 1, perPage = 10, languagePair?: string) => {
+    let url = `/api/cards/search?q=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`
+    if (languagePair) url += `&language_pair=${languagePair}`
+    return request<PaginatedCards>(url)
+  },
+
   getCard: (id: number) =>
     request<Flashcard>(`/api/cards/${id}`),
 

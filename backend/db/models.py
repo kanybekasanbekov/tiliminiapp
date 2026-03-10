@@ -344,6 +344,42 @@ async def get_all_flashcards(
     return [dict(r) for r in rows], total
 
 
+async def search_flashcards(
+    conn: aiosqlite.Connection,
+    user_id: int,
+    query: str,
+    language_pair: str,
+    offset: int = 0,
+    limit: int = 10,
+) -> tuple[list[dict], int]:
+    """Search flashcards by source_text or target_text within a language pair. Returns (cards, total_count)."""
+    like_param = f"%{query}%"
+
+    cursor = await conn.execute(
+        """
+        SELECT COUNT(*) as cnt FROM flashcards
+        WHERE user_id = ? AND language_pair = ? AND (source_text LIKE ? OR target_text LIKE ?)
+        """,
+        (user_id, language_pair, like_param, like_param),
+    )
+    row = await cursor.fetchone()
+    total = row["cnt"] if row else 0
+
+    cursor = await conn.execute(
+        """
+        SELECT f.*, d.name as deck_name
+        FROM flashcards f
+        JOIN decks d ON f.deck_id = d.id
+        WHERE f.user_id = ? AND f.language_pair = ? AND (f.source_text LIKE ? OR f.target_text LIKE ?)
+        ORDER BY f.created_at DESC
+        LIMIT ? OFFSET ?
+        """,
+        (user_id, language_pair, like_param, like_param, limit, offset),
+    )
+    rows = await cursor.fetchall()
+    return [dict(r) for r in rows], total
+
+
 async def update_flashcard(
     conn: aiosqlite.Connection,
     flashcard_id: int,

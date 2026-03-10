@@ -100,6 +100,36 @@ async def list_cards(
     }
 
 
+@router.get("/search")
+async def search_cards(
+    request: Request,
+    q: str,
+    page: int = 1,
+    per_page: int = 10,
+    language_pair: str = "ko-en",
+    user: dict[str, Any] = Depends(ensure_user),
+):
+    """Search cards by source or target text within a language pair."""
+    if not q.strip():
+        raise HTTPException(status_code=400, detail="Search query cannot be empty")
+    if language_pair not in SUPPORTED_LANGUAGE_PAIRS:
+        raise HTTPException(status_code=400, detail=f"Unsupported language pair: {language_pair}")
+    db = request.app.state.db
+    user_id = user["id"]
+    offset = (page - 1) * per_page
+
+    cards, total = await models.search_flashcards(db, user_id, q.strip(), language_pair, offset, per_page)
+    total_pages = (total + per_page - 1) // per_page
+
+    return {
+        "cards": cards,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages,
+    }
+
+
 @router.get("/{card_id}")
 async def get_card(
     card_id: int,

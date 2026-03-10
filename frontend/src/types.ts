@@ -12,6 +12,7 @@ export interface Flashcard {
   interval_days: number
   repetitions: number
   deck_id: number
+  deck_name?: string
 }
 
 export interface Deck {

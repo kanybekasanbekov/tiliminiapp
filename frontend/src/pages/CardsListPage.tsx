@@ -26,6 +26,16 @@ export default function CardsListPage() {
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<number | null>(null)
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Flashcard[]>([])
+  const [searchPage, setSearchPage] = useState(1)
+  const [searchTotalPages, setSearchTotalPages] = useState(1)
+  const [searchTotal, setSearchTotal] = useState(0)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isSearchActive = searchQuery.trim().length > 0
+
   // Deck state
   const [decks, setDecks] = useState<Deck[]>([])
   const [selectedDeckId, setSelectedDeckId] = useState<number | undefined>(
@@ -92,9 +102,45 @@ export default function CardsListPage() {
     }
   }
 
+  const loadSearchResults = async (query: string, p: number) => {
+    if (!query.trim()) return
+    setSearchLoading(true)
+    try {
+      const data = await api.searchCards(query.trim(), p, 10, activeLanguagePair)
+      setSearchResults(data.cards)
+      setSearchTotalPages(data.total_pages)
+      setSearchTotal(data.total)
+      setSearchPage(p)
+    } catch {
+      // ignore
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    if (!value.trim()) {
+      setSearchResults([])
+      setSearchTotal(0)
+      return
+    }
+    searchTimerRef.current = setTimeout(() => {
+      loadSearchResults(value, 1)
+    }, 300)
+  }
+
+  const prevLangVersion = useRef(languagePairVersion)
   useEffect(() => {
     loadDecks()
-    setSelectedDeckId(undefined)
+    // Only reset deck selection when language pair actually changes, not on initial mount
+    if (prevLangVersion.current !== languagePairVersion) {
+      setSelectedDeckId(undefined)
+      setSearchQuery('')
+      setSearchResults([])
+      prevLangVersion.current = languagePairVersion
+    }
   }, [languagePairVersion])
 
   useEffect(() => {
@@ -233,8 +279,44 @@ export default function CardsListPage() {
         </p>
       </div>
 
-      {/* Deck chip bar */}
-      <div style={{
+      {/* Search input */}
+      <div style={{ padding: '0 16px 8px', position: 'relative' }}>
+        <Input
+          value={searchQuery}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          placeholder={t('cards.search')}
+        />
+        {searchQuery && (
+          <button
+            onClick={() => handleSearchChange('')}
+            style={{
+              position: 'absolute',
+              right: '28px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'none',
+              border: 'none',
+              fontSize: '18px',
+              color: 'var(--tg-hint-color)',
+              cursor: 'pointer',
+              padding: '4px',
+            }}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {isSearchActive && (
+        <div style={{ padding: '0 16px 8px' }}>
+          <p style={{ color: 'var(--tg-hint-color)', fontSize: '13px' }}>
+            {searchLoading ? t('cards.loading') : t('cards.searchResults', { count: searchTotal, s: searchTotal !== 1 ? 's' : '' })}
+          </p>
+        </div>
+      )}
+
+      {/* Deck chip bar — hidden during search */}
+      {!isSearchActive && <div style={{
         display: 'flex',
         gap: '8px',
         padding: '4px 16px 12px',
@@ -302,7 +384,7 @@ export default function CardsListPage() {
         >
           {t('cards.new')}
         </button>
-      </div>
+      </div>}
 
       {/* Deck action menu */}
       {actionDeckId != null && (() => {
@@ -372,125 +454,155 @@ export default function CardsListPage() {
         )
       })()}
 
-      {/* Card list or empty state */}
-      {!loading && cards.length === 0 ? (
-        <div style={{ padding: '32px 16px' }}>
-          <EmptyState
-            icon="🗂"
-            title={selectedDeckId != null ? t('cards.noCardsInDeck') : t('cards.noCardsYet')}
-            description={selectedDeckId != null ? t('cards.noCardsInDeckSub') : t('cards.noCardsYetSub')}
-            action={{ label: t('cards.addCard'), onClick: () => navigate('/add') }}
-          />
-        </div>
-      ) : (
-        <Section>
-          {cards.map((card) => (
-            <div key={card.id}>
-              <Cell
-                onClick={() => setExpandedId(expandedId === card.id ? null : card.id)}
-                subtitle={card.target_text}
-                after={
-                  <span style={{ fontSize: '11px', color: 'var(--tg-hint-color)' }}>
-                    {new Date(card.next_review).toLocaleDateString()}
-                  </span>
-                }
-              >
-                {card.source_text}
-              </Cell>
-              {expandedId === card.id && (
-                <div style={{
-                  padding: '12px 16px 16px',
-                  backgroundColor: 'var(--tg-secondary-bg-color)',
-                  fontSize: '14px',
-                }}>
-                  {card.example_source && (
-                    <div style={{ marginBottom: '8px' }}>
-                      <div style={{ color: 'var(--tg-hint-color)', fontSize: '12px', marginBottom: '2px' }}>{t('cards.example')}</div>
-                      <div>{card.example_source}</div>
-                      {card.example_target && (
-                        <div style={{ color: 'var(--tg-hint-color)', fontStyle: 'italic', marginTop: '2px' }}>
-                          {card.example_target}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--tg-hint-color)', marginBottom: '12px' }}>
-                    <span>{t('cards.ease')} {card.ease_factor.toFixed(2)}</span>
-                    <span>{t('cards.interval')} {card.interval_days}d</span>
-                    <span>{t('cards.reps')} {card.repetitions}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <Button
-                      size="s"
-                      mode="outline"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openView(card)
-                      }}
-                    >
-                      {t('cards.view')}
-                    </Button>
-                    <Button
-                      size="s"
-                      mode="outline"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openEdit(card)
-                      }}
-                    >
-                      {t('cards.edit')}
-                    </Button>
-                    <Button
-                      size="s"
-                      mode="outline"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDelete(card)
-                      }}
-                      style={{ color: '#ff3b30' }}
-                    >
-                      {t('cards.delete')}
-                    </Button>
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    <ExplainButton key={card.id} cardId={card.id} />
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </Section>
-      )}
+      {/* Card list — search results or normal */}
+      {(() => {
+        const displayCards = isSearchActive ? searchResults : cards
+        const displayLoading = isSearchActive ? searchLoading : loading
+        const displayPage = isSearchActive ? searchPage : page
+        const displayTotalPages = isSearchActive ? searchTotalPages : totalPages
 
-      {totalPages > 1 && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: '16px',
-          padding: '16px',
-        }}>
-          <Button
-            size="s"
-            mode="outline"
-            disabled={page <= 1}
-            onClick={() => loadCards(page - 1, selectedDeckId)}
-          >
-            {t('cards.previous')}
-          </Button>
-          <span style={{ fontSize: '14px', color: 'var(--tg-hint-color)' }}>
-            {page} / {totalPages}
-          </span>
-          <Button
-            size="s"
-            mode="outline"
-            disabled={page >= totalPages}
-            onClick={() => loadCards(page + 1, selectedDeckId)}
-          >
-            {t('cards.next')}
-          </Button>
-        </div>
-      )}
+        return (
+          <>
+            {!displayLoading && displayCards.length === 0 ? (
+              <div style={{ padding: '32px 16px' }}>
+                <EmptyState
+                  icon={isSearchActive ? "🔍" : "🗂"}
+                  title={isSearchActive ? t('cards.noSearchResults') : (selectedDeckId != null ? t('cards.noCardsInDeck') : t('cards.noCardsYet'))}
+                  description={isSearchActive ? t('cards.noSearchResultsSub') : (selectedDeckId != null ? t('cards.noCardsInDeckSub') : t('cards.noCardsYetSub'))}
+                  action={isSearchActive ? undefined : { label: t('cards.addCard'), onClick: () => navigate('/add') }}
+                />
+              </div>
+            ) : (
+              <Section>
+                {displayCards.map((card) => (
+                  <div key={card.id}>
+                    <Cell
+                      onClick={() => setExpandedId(expandedId === card.id ? null : card.id)}
+                      subtitle={card.target_text}
+                      after={
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--tg-hint-color)' }}>
+                            {new Date(card.next_review).toLocaleDateString()}
+                          </span>
+                          {isSearchActive && card.deck_name && (
+                            <span style={{
+                              fontSize: '10px',
+                              color: 'var(--tg-button-text-color)',
+                              backgroundColor: 'var(--tg-button-color)',
+                              borderRadius: '8px',
+                              padding: '1px 6px',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {card.deck_name}
+                            </span>
+                          )}
+                        </div>
+                      }
+                    >
+                      {card.source_text}
+                    </Cell>
+                    {expandedId === card.id && (
+                      <div style={{
+                        padding: '12px 16px 16px',
+                        backgroundColor: 'var(--tg-secondary-bg-color)',
+                        fontSize: '14px',
+                      }}>
+                        {card.example_source && (
+                          <div style={{ marginBottom: '8px' }}>
+                            <div style={{ color: 'var(--tg-hint-color)', fontSize: '12px', marginBottom: '2px' }}>{t('cards.example')}</div>
+                            <div>{card.example_source}</div>
+                            {card.example_target && (
+                              <div style={{ color: 'var(--tg-hint-color)', fontStyle: 'italic', marginTop: '2px' }}>
+                                {card.example_target}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {isSearchActive && card.deck_name && (
+                          <div style={{ marginBottom: '8px', fontSize: '12px', color: 'var(--tg-hint-color)' }}>
+                            {t('cards.deck')}: <strong style={{ color: 'var(--tg-text-color)' }}>{card.deck_name}</strong>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--tg-hint-color)', marginBottom: '12px' }}>
+                          <span>{t('cards.ease')} {card.ease_factor.toFixed(2)}</span>
+                          <span>{t('cards.interval')} {card.interval_days}d</span>
+                          <span>{t('cards.reps')} {card.repetitions}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <Button
+                            size="s"
+                            mode="outline"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openView(card)
+                            }}
+                          >
+                            {t('cards.view')}
+                          </Button>
+                          <Button
+                            size="s"
+                            mode="outline"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openEdit(card)
+                            }}
+                          >
+                            {t('cards.edit')}
+                          </Button>
+                          <Button
+                            size="s"
+                            mode="outline"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDelete(card)
+                            }}
+                            style={{ color: '#ff3b30' }}
+                          >
+                            {t('cards.delete')}
+                          </Button>
+                        </div>
+                        <div style={{ marginTop: '10px' }}>
+                          <ExplainButton key={card.id} cardId={card.id} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </Section>
+            )}
+
+            {displayTotalPages > 1 && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '16px',
+              }}>
+                <Button
+                  size="s"
+                  mode="outline"
+                  disabled={displayPage <= 1}
+                  onClick={() => isSearchActive ? loadSearchResults(searchQuery, searchPage - 1) : loadCards(page - 1, selectedDeckId)}
+                >
+                  {t('cards.previous')}
+                </Button>
+                <span style={{ fontSize: '14px', color: 'var(--tg-hint-color)' }}>
+                  {displayPage} / {displayTotalPages}
+                </span>
+                <Button
+                  size="s"
+                  mode="outline"
+                  disabled={displayPage >= displayTotalPages}
+                  onClick={() => isSearchActive ? loadSearchResults(searchQuery, searchPage + 1) : loadCards(page + 1, selectedDeckId)}
+                >
+                  {t('cards.next')}
+                </Button>
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {/* Create Deck Modal */}
       {showCreateModal && (
