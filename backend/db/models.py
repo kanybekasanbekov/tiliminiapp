@@ -286,6 +286,7 @@ async def get_due_flashcards(
     user_id: int,
     limit: int = 10,
     language_pair: str | None = None,
+    deck_id: int | None = None,
 ) -> list[dict]:
     """Fetch flashcards where next_review <= now, ordered by next_review ASC."""
     where = "WHERE user_id = ? AND next_review <= datetime('now')"
@@ -293,6 +294,9 @@ async def get_due_flashcards(
     if language_pair is not None:
         where += " AND language_pair = ?"
         params.append(language_pair)
+    if deck_id is not None:
+        where += " AND deck_id = ?"
+        params.append(deck_id)
     cursor = await conn.execute(
         f"""
         SELECT * FROM flashcards
@@ -488,24 +492,28 @@ async def get_user_stats(
     conn: aiosqlite.Connection,
     user_id: int,
     language_pair: str | None = None,
+    deck_id: int | None = None,
 ) -> dict:
-    """Return stats: total cards, cards due today, interval distribution. Optionally scoped to a language pair."""
-    lang_filter = ""
-    lang_params: tuple = ()
+    """Return stats: total cards, cards due today, interval distribution. Optionally scoped to a language pair and/or deck."""
+    extra_filter = ""
+    extra_params: tuple = ()
     if language_pair is not None:
-        lang_filter = " AND language_pair = ?"
-        lang_params = (language_pair,)
+        extra_filter += " AND language_pair = ?"
+        extra_params += (language_pair,)
+    if deck_id is not None:
+        extra_filter += " AND deck_id = ?"
+        extra_params += (deck_id,)
 
     cursor = await conn.execute(
-        "SELECT COUNT(*) as cnt FROM flashcards WHERE user_id = ?" + lang_filter,
-        (user_id,) + lang_params,
+        "SELECT COUNT(*) as cnt FROM flashcards WHERE user_id = ?" + extra_filter,
+        (user_id,) + extra_params,
     )
     row = await cursor.fetchone()
     total = row["cnt"] if row else 0
 
     cursor = await conn.execute(
-        "SELECT COUNT(*) as cnt FROM flashcards WHERE user_id = ? AND next_review <= datetime('now')" + lang_filter,
-        (user_id,) + lang_params,
+        "SELECT COUNT(*) as cnt FROM flashcards WHERE user_id = ? AND next_review <= datetime('now')" + extra_filter,
+        (user_id,) + extra_params,
     )
     row = await cursor.fetchone()
     due = row["cnt"] if row else 0
@@ -519,8 +527,8 @@ async def get_user_stats(
             SUM(CASE WHEN interval_days > 30 THEN 1 ELSE 0 END) as mature_count
         FROM flashcards
         WHERE user_id = ?
-        """ + lang_filter,
-        (user_id,) + lang_params,
+        """ + extra_filter,
+        (user_id,) + extra_params,
     )
     row = await cursor.fetchone()
     distribution = {

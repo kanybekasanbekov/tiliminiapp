@@ -49,6 +49,7 @@ export const translations: Record<string, TranslationMap> = {
     'practice.cardOf': 'Card {{current}} of {{total}}',
     'practice.reviewed': 'Reviewed: {{count}}',
     'practice.showAnswer': 'Show Answer',
+    'practice.allDecks': 'All ({{count}})',
 
     // Cards List
     'cards.loading': 'Loading cards...',
@@ -223,6 +224,7 @@ export const translations: Record<string, TranslationMap> = {
     'practice.cardOf': 'Карточка {{current}} из {{total}}',
     'practice.reviewed': 'Повторено: {{count}}',
     'practice.showAnswer': 'Показать ответ',
+    'practice.allDecks': 'Все ({{count}})',
 
     // Cards List
     'cards.loading': 'Загрузка карточек...',
@@ -397,6 +399,7 @@ export const translations: Record<string, TranslationMap> = {
     'practice.cardOf': '카드 {{current}} / {{total}}',
     'practice.reviewed': '복습: {{count}}',
     'practice.showAnswer': '정답 보기',
+    'practice.allDecks': '전체 ({{count}})',
 
     // Cards List
     'cards.loading': '카드 로딩 중...',

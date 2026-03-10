@@ -117,9 +117,10 @@ export const api = {
     }),
 
   // Practice API
-  getDueCards: (limit = 20, languagePair?: string) => {
+  getDueCards: (limit = 20, languagePair?: string, deckId?: number) => {
     let url = `/api/practice/due?limit=${limit}`
     if (languagePair) url += `&language_pair=${languagePair}`
+    if (deckId != null) url += `&deck_id=${deckId}`
     return request<DueCardsResponse>(url)
   },
 

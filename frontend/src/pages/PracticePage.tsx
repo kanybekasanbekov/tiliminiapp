@@ -4,7 +4,7 @@ import { Button } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
 import { useApp } from '../contexts/AppContext'
-import type { Flashcard, Difficulty } from '../types'
+import type { Flashcard, Deck, Difficulty } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import FlashCard from '../components/FlashCard'
@@ -30,6 +30,7 @@ interface SavedSession {
   totalDue: number
   showSide: 'source' | 'target'
   practiceMode: PracticeMode
+  selectedDeckId?: number
   timestamp: number
 }
 
@@ -73,6 +74,47 @@ export default function PracticePage() {
   const [practiceMode, setPracticeMode] = useState<PracticeMode>('source-to-target')
   const initialized = useRef(false)
 
+  // Deck state
+  const [decks, setDecks] = useState<Deck[]>([])
+  const [selectedDeckId, setSelectedDeckId] = useState<number | undefined>(undefined)
+  const [decksLoading, setDecksLoading] = useState(true)
+
+  const loadDecks = async () => {
+    setDecksLoading(true)
+    try {
+      const data = await api.getDecks(activeLanguagePair)
+      setDecks(data.decks)
+    } catch {
+      // ignore
+    } finally {
+      setDecksLoading(false)
+    }
+  }
+
+  const fetchCards = async (deckId?: number) => {
+    setLoading(true)
+    try {
+      const data = await api.getDueCards(20, activeLanguagePair, deckId)
+      setCards(data.cards)
+      setTotalDue(data.total_due)
+      setDueCount(data.total_due)
+      if (data.cards.length === 0) {
+        setSessionComplete(true)
+      } else {
+        setShowSide(getSideForMode(practiceMode))
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Load decks on mount
+  useEffect(() => {
+    loadDecks()
+  }, [languagePairVersion])
+
   // Init: try restoring from sessionStorage, otherwise fetch from API
   useEffect(() => {
     if (initialized.current) return
@@ -86,27 +128,10 @@ export default function PracticePage() {
       setTotalDue(saved.totalDue)
       setShowSide(saved.showSide)
       setPracticeMode(saved.practiceMode ?? 'source-to-target')
+      setSelectedDeckId(saved.selectedDeckId)
       setDueCount(saved.totalDue - saved.reviewed)
       setLoading(false)
       return
-    }
-
-    async function fetchCards() {
-      try {
-        const data = await api.getDueCards(20, activeLanguagePair)
-        setCards(data.cards)
-        setTotalDue(data.total_due)
-        setDueCount(data.total_due)
-        if (data.cards.length === 0) {
-          setSessionComplete(true)
-        } else {
-          setShowSide(getSideForMode(practiceMode))
-        }
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false)
-      }
     }
 
     fetchCards()
@@ -122,21 +147,29 @@ export default function PracticePage() {
     setTotalDue(0)
     setShowAnswer(false)
     setSessionComplete(false)
-    setLoading(true)
-    api.getDueCards(20, activeLanguagePair).then((data) => {
-      setCards(data.cards)
-      setTotalDue(data.total_due)
-      setDueCount(data.total_due)
-      if (data.cards.length === 0) setSessionComplete(true)
-      else setShowSide(getSideForMode(practiceMode))
-    }).catch(() => {}).finally(() => setLoading(false))
+    setSelectedDeckId(undefined)
+    fetchCards()
   }, [languagePairVersion])
+
+  // Handle deck selection change
+  const handleDeckSelect = (deckId: number | undefined) => {
+    if (deckId === selectedDeckId) return
+    setSelectedDeckId(deckId)
+    clearSession()
+    setCards([])
+    setCurrentIndex(0)
+    setReviewed(0)
+    setTotalDue(0)
+    setShowAnswer(false)
+    setSessionComplete(false)
+    fetchCards(deckId)
+  }
 
   // Persist session state on changes
   useEffect(() => {
     if (loading || sessionComplete || cards.length === 0) return
-    saveSession({ cards, currentIndex, reviewed, totalDue, showSide, practiceMode })
-  }, [cards, currentIndex, reviewed, totalDue, showSide, practiceMode, loading, sessionComplete])
+    saveSession({ cards, currentIndex, reviewed, totalDue, showSide, practiceMode, selectedDeckId })
+  }, [cards, currentIndex, reviewed, totalDue, showSide, practiceMode, selectedDeckId, loading, sessionComplete])
 
   // Clear storage when session completes
   useEffect(() => {
@@ -151,6 +184,7 @@ export default function PracticePage() {
   }, [practiceMode])
 
   const currentCard = cards[currentIndex]
+  const totalCardCount = decks.reduce((sum, d) => sum + d.card_count, 0)
 
   const handleReveal = () => {
     setShowAnswer(true)
@@ -182,11 +216,66 @@ export default function PracticePage() {
     }
   }
 
-  if (loading) return <LoadingSpinner text={t('practice.loading')} />
+  if (loading && decksLoading) return <LoadingSpinner text={t('practice.loading')} />
+
+  // Deck chip bar (shown always, including on empty/complete states)
+  const deckChipBar = (
+    <div style={{
+      display: 'flex',
+      gap: '8px',
+      padding: '4px 16px 12px',
+      overflowX: 'auto',
+      whiteSpace: 'nowrap',
+      msOverflowStyle: 'none',
+      scrollbarWidth: 'none',
+    }}>
+      <style>{`.practice-chip::-webkit-scrollbar { display: none; }`}</style>
+      <button
+        className="practice-chip"
+        onClick={() => handleDeckSelect(undefined)}
+        style={{
+          flexShrink: 0,
+          border: 'none',
+          borderRadius: '16px',
+          padding: '6px 14px',
+          fontSize: '13px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          background: selectedDeckId == null ? 'var(--tg-button-color)' : 'var(--tg-secondary-bg-color)',
+          color: selectedDeckId == null ? 'var(--tg-button-text-color)' : 'var(--tg-text-color)',
+        }}
+      >
+        {t('practice.allDecks', { count: totalCardCount })}
+      </button>
+      {decks.map((deck) => (
+        <button
+          key={deck.id}
+          className="practice-chip"
+          onClick={() => handleDeckSelect(deck.id)}
+          style={{
+            flexShrink: 0,
+            border: 'none',
+            borderRadius: '16px',
+            padding: '6px 14px',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            background: selectedDeckId === deck.id ? 'var(--tg-button-color)' : 'var(--tg-secondary-bg-color)',
+            color: selectedDeckId === deck.id ? 'var(--tg-button-text-color)' : 'var(--tg-text-color)',
+          }}
+        >
+          {deck.name} ({deck.card_count})
+        </button>
+      ))}
+    </div>
+  )
 
   if (sessionComplete || cards.length === 0) {
     return (
       <div className="page">
+        <div style={{ padding: '16px 16px 0' }}>
+          {deckChipBar}
+        </div>
         <EmptyState
           icon={reviewed > 0 ? '🎉' : '✅'}
           title={reviewed > 0 ? t('practice.sessionComplete') : t('practice.allCaughtUp')}
@@ -208,6 +297,8 @@ export default function PracticePage() {
   return (
     <div className="page">
       <div style={{ padding: '16px 16px 8px' }}>
+        {/* Deck selector */}
+        {deckChipBar}
         {/* Practice mode selector */}
         <div style={{ display: 'flex', marginBottom: '10px', borderRadius: '8px', overflow: 'hidden' }}>
           {([

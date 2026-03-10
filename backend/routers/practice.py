@@ -23,18 +23,19 @@ async def get_due_cards(
     request: Request,
     limit: int = 20,
     language_pair: str | None = None,
+    deck_id: int | None = None,
     user: dict[str, Any] = Depends(ensure_user),
 ):
-    """Get cards due for review, optionally scoped to a language pair."""
+    """Get cards due for review, optionally scoped to a language pair and/or deck."""
     if language_pair is not None and language_pair not in SUPPORTED_LANGUAGE_PAIRS:
         raise HTTPException(status_code=400, detail=f"Unsupported language pair: {language_pair}")
     db = request.app.state.db
     user_id = user["id"]
 
-    cards = await models.get_due_flashcards(db, user_id, limit, language_pair=language_pair)
+    cards = await models.get_due_flashcards(db, user_id, limit, language_pair=language_pair, deck_id=deck_id)
 
     # Get total due count
-    stats = await models.get_user_stats(db, user_id, language_pair=language_pair)
+    stats = await models.get_user_stats(db, user_id, language_pair=language_pair, deck_id=deck_id)
 
     return {
         "cards": cards,
