@@ -48,7 +48,13 @@ async def translate_word(
     llm = request.app.state.llm
     try:
         source_lang, target_lang = body.language_pair.split("-", 1)
-        result = await llm.translate(body.word, source_lang, target_lang)
+        result, usage = await llm.translate(body.word, source_lang, target_lang)
+        db = request.app.state.db
+        await models.log_api_usage(
+            db, user["id"], "translate", usage["model"],
+            usage["input_tokens"], usage["output_tokens"],
+            usage["estimated_cost_usd"], body.language_pair,
+        )
         return result.model_dump()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -146,8 +152,14 @@ async def explain_word(
     llm = request.app.state.llm
     try:
         source_lang, target_lang = body.language_pair.split("-", 1)
-        explanation_text = await llm.explain_word(
+        explanation_text, usage = await llm.explain_word(
             body.source_text, body.target_text, source_lang, target_lang
+        )
+        db = request.app.state.db
+        await models.log_api_usage(
+            db, user["id"], "explain", usage["model"],
+            usage["input_tokens"], usage["output_tokens"],
+            usage["estimated_cost_usd"], body.language_pair,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Explanation failed: {str(e)}")
@@ -223,8 +235,13 @@ async def generate_explanation(
     llm = request.app.state.llm
     try:
         source_lang, target_lang = card["language_pair"].split("-", 1)
-        explanation_text = await llm.explain_word(
+        explanation_text, usage = await llm.explain_word(
             card["source_text"], card["target_text"], source_lang, target_lang
+        )
+        await models.log_api_usage(
+            db, user_id, "explain", usage["model"],
+            usage["input_tokens"], usage["output_tokens"],
+            usage["estimated_cost_usd"], card["language_pair"],
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Explanation failed: {str(e)}")

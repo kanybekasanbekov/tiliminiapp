@@ -603,3 +603,105 @@ async def check_duplicate(
         (user_id, source_text, language_pair),
     )
     return await cursor.fetchone() is not None
+
+
+async def log_api_usage(
+    conn: aiosqlite.Connection,
+    user_id: int,
+    call_type: str,
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    estimated_cost_usd: float,
+    language_pair: str | None = None,
+) -> None:
+    """Log an LLM API call for usage tracking."""
+    await conn.execute(
+        """
+        INSERT INTO api_usage (user_id, call_type, model, input_tokens, output_tokens, estimated_cost_usd, language_pair)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (user_id, call_type, model, input_tokens, output_tokens, estimated_cost_usd, language_pair),
+    )
+    await conn.commit()
+
+
+async def get_admin_global_stats(conn: aiosqlite.Connection) -> dict:
+    """Get global admin statistics across all users."""
+    # Total users
+    cursor = await conn.execute("SELECT COUNT(*) as cnt FROM users")
+    row = await cursor.fetchone()
+    total_users = row["cnt"] if row else 0
+
+    # Active users (practiced in last 7 days)
+    cursor = await conn.execute(
+        "SELECT COUNT(*) as cnt FROM users WHERE last_practice_date >= date('now', '-7 days')"
+    )
+    row = await cursor.fetchone()
+    active_users_7d = row["cnt"] if row else 0
+
+    # New users (registered in last 7 days)
+    cursor = await conn.execute(
+        "SELECT COUNT(*) as cnt FROM users WHERE created_at >= datetime('now', '-7 days')"
+    )
+    row = await cursor.fetchone()
+    new_users_7d = row["cnt"] if row else 0
+
+    # API usage totals
+    cursor = await conn.execute(
+        """
+        SELECT
+            COALESCE(SUM(CASE WHEN call_type = 'translate' THEN 1 ELSE 0 END), 0) as total_translations,
+            COALESCE(SUM(CASE WHEN call_type = 'explain' THEN 1 ELSE 0 END), 0) as total_explanations,
+            COALESCE(SUM(estimated_cost_usd), 0.0) as total_cost_usd
+        FROM api_usage
+        """
+    )
+    row = await cursor.fetchone()
+
+    return {
+        "total_users": total_users,
+        "active_users_7d": active_users_7d,
+        "new_users_7d": new_users_7d,
+        "total_translations": row["total_translations"] if row else 0,
+        "total_explanations": row["total_explanations"] if row else 0,
+        "total_cost_usd": round(row["total_cost_usd"], 6) if row else 0.0,
+    }
+
+
+async def get_admin_user_stats(conn: aiosqlite.Connection) -> list[dict]:
+    """Get per-user statistics for admin dashboard."""
+    cursor = await conn.execute(
+        """
+        SELECT
+            u.id as user_id,
+            u.first_name,
+            u.telegram_username as username,
+            u.created_at,
+            u.last_practice_date as last_active,
+            COALESCE(fc.card_count, 0) as total_cards,
+            COALESCE(au.translate_count, 0) as total_translations,
+            COALESCE(au.explain_count, 0) as total_explanations,
+            COALESCE(au.total_cost, 0.0) as total_cost_usd
+        FROM users u
+        LEFT JOIN (
+            SELECT user_id, COUNT(*) as card_count
+            FROM flashcards GROUP BY user_id
+        ) fc ON fc.user_id = u.id
+        LEFT JOIN (
+            SELECT user_id,
+                SUM(CASE WHEN call_type = 'translate' THEN 1 ELSE 0 END) as translate_count,
+                SUM(CASE WHEN call_type = 'explain' THEN 1 ELSE 0 END) as explain_count,
+                SUM(estimated_cost_usd) as total_cost
+            FROM api_usage GROUP BY user_id
+        ) au ON au.user_id = u.id
+        ORDER BY total_cost_usd DESC
+        """
+    )
+    rows = await cursor.fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["total_cost_usd"] = round(d["total_cost_usd"], 6)
+        result.append(d)
+    return result

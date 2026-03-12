@@ -40,6 +40,26 @@ SUPPORTED_PAIRS: dict[str, dict] = {
     },
 }
 
+MODEL_PRICING: dict[str, tuple[float, float]] = {
+    # (input_price_per_1M_tokens, output_price_per_1M_tokens)
+    "gpt-4.1-mini": (0.40, 1.60),
+    "gpt-4.1-nano": (0.10, 0.40),
+    "gpt-4.1": (2.00, 8.00),
+    "gpt-4o-mini": (0.15, 0.60),
+    "gpt-4o": (2.50, 10.00),
+    "claude-sonnet-4-20250514": (3.00, 15.00),
+    "claude-haiku-4-5-20251001": (0.80, 4.00),
+}
+
+
+def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+    """Estimate USD cost from token counts using MODEL_PRICING."""
+    pricing = MODEL_PRICING.get(model)
+    if not pricing:
+        return 0.0
+    input_price, output_price = pricing
+    return (input_tokens * input_price + output_tokens * output_price) / 1_000_000
+
 
 def build_translation_prompt(source_lang: str, target_lang: str) -> str:
     """Build a translation system prompt for the given language pair."""
@@ -132,13 +152,13 @@ class LLMProvider(ABC):
     """Abstract base for LLM providers."""
 
     @abstractmethod
-    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> TranslationResult:
-        """Translate a word and return structured data."""
+    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict]:
+        """Translate a word and return structured data + usage info."""
         ...
 
     @abstractmethod
-    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> str:
-        """Generate a detailed explanation for a word. Returns markdown text."""
+    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict]:
+        """Generate a detailed explanation for a word. Returns (markdown text, usage info)."""
         ...
 
 
@@ -149,7 +169,7 @@ class AnthropicProvider(LLMProvider):
         self.client = anthropic.AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
         self.model = config.LLM_MODEL
 
-    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> TranslationResult:
+    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict]:
         system_prompt = build_translation_prompt(source_lang, target_lang)
         for attempt in range(MAX_RETRIES):
             try:
@@ -166,7 +186,13 @@ class AnthropicProvider(LLMProvider):
                         break
                 logger.debug("Anthropic raw response: %s", text)
                 data = _extract_json(text)
-                return TranslationResult.model_validate(data)
+                usage = {
+                    "model": self.model,
+                    "input_tokens": getattr(response.usage, 'input_tokens', 0),
+                    "output_tokens": getattr(response.usage, 'output_tokens', 0),
+                }
+                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
+                return TranslationResult.model_validate(data), usage
             except (
                 anthropic.APIError,
                 anthropic.APIConnectionError,
@@ -185,7 +211,7 @@ class AnthropicProvider(LLMProvider):
         raise RuntimeError("Unreachable")
 
 
-    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> str:
+    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict]:
         prompt = build_explanation_prompt(word, translation, source_lang, target_lang)
         for attempt in range(MAX_RETRIES):
             try:
@@ -200,7 +226,13 @@ class AnthropicProvider(LLMProvider):
                         text = block.text
                         break
                 logger.debug("Anthropic explain response: %s", text)
-                return text.strip().strip("`").strip()
+                usage = {
+                    "model": self.model,
+                    "input_tokens": getattr(response.usage, 'input_tokens', 0),
+                    "output_tokens": getattr(response.usage, 'output_tokens', 0),
+                }
+                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
+                return text.strip().strip("`").strip(), usage
             except (
                 anthropic.APIError,
                 anthropic.APIConnectionError,
@@ -226,7 +258,7 @@ class OpenAIProvider(LLMProvider):
         self.client = openai.AsyncOpenAI(api_key=config.OPENAI_API_KEY)
         self.model = config.LLM_MODEL or "gpt-4.1-mini"
 
-    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> TranslationResult:
+    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict]:
         system_prompt = build_translation_prompt(source_lang, target_lang)
         for attempt in range(MAX_RETRIES):
             try:
@@ -242,7 +274,14 @@ class OpenAIProvider(LLMProvider):
                 text = response.choices[0].message.content or "{}"
                 logger.debug("OpenAI raw response: %s", text)
                 data = _extract_json(text)
-                return TranslationResult.model_validate(data)
+                usage_obj = response.usage
+                usage = {
+                    "model": self.model,
+                    "input_tokens": getattr(usage_obj, 'prompt_tokens', 0) if usage_obj else 0,
+                    "output_tokens": getattr(usage_obj, 'completion_tokens', 0) if usage_obj else 0,
+                }
+                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
+                return TranslationResult.model_validate(data), usage
             except (
                 openai.APIError,
                 openai.APIConnectionError,
@@ -261,7 +300,7 @@ class OpenAIProvider(LLMProvider):
         raise RuntimeError("Unreachable")
 
 
-    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> str:
+    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict]:
         prompt = build_explanation_prompt(word, translation, source_lang, target_lang)
         for attempt in range(MAX_RETRIES):
             try:
@@ -274,7 +313,14 @@ class OpenAIProvider(LLMProvider):
                 )
                 text = response.choices[0].message.content or ""
                 logger.debug("OpenAI explain response: %s", text)
-                return text.strip().strip("`").strip()
+                usage_obj = response.usage
+                usage = {
+                    "model": self.model,
+                    "input_tokens": getattr(usage_obj, 'prompt_tokens', 0) if usage_obj else 0,
+                    "output_tokens": getattr(usage_obj, 'completion_tokens', 0) if usage_obj else 0,
+                }
+                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
+                return text.strip().strip("`").strip(), usage
             except (
                 openai.APIError,
                 openai.APIConnectionError,

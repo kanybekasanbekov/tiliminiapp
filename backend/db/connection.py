@@ -57,6 +57,20 @@ CREATE TABLE IF NOT EXISTS explanations (
 );
 """
 
+_API_USAGE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS api_usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    call_type TEXT NOT NULL,
+    model TEXT NOT NULL,
+    input_tokens INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0,
+    estimated_cost_usd REAL DEFAULT 0.0,
+    language_pair TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
 _INDEXES = """
 CREATE INDEX IF NOT EXISTS idx_user_review ON flashcards(user_id, next_review);
 CREATE INDEX IF NOT EXISTS idx_user_source ON flashcards(user_id, language_pair, source_text);
@@ -64,6 +78,8 @@ CREATE INDEX IF NOT EXISTS idx_deck_user ON decks(user_id, language_pair);
 CREATE INDEX IF NOT EXISTS idx_flashcard_deck ON flashcards(deck_id);
 CREATE INDEX IF NOT EXISTS idx_explanation_card ON explanations(card_id);
 CREATE INDEX IF NOT EXISTS idx_user_lang_review ON flashcards(user_id, language_pair, next_review);
+CREATE INDEX IF NOT EXISTS idx_api_usage_user ON api_usage(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_usage_created ON api_usage(created_at);
 """
 
 _MIGRATION_SETUP = """
@@ -243,6 +259,19 @@ async def _run_migration_5(conn: aiosqlite.Connection) -> None:
     await conn.commit()
 
 
+async def _run_migration_6(conn: aiosqlite.Connection) -> None:
+    """Migration 6: Create api_usage table."""
+    cursor = await conn.execute("SELECT 1 FROM schema_versions WHERE version = 6")
+    if await cursor.fetchone():
+        return
+
+    await conn.executescript(_API_USAGE_SCHEMA)
+    await conn.execute(
+        "INSERT INTO schema_versions (version, description) VALUES (6, 'create api_usage table')"
+    )
+    await conn.commit()
+
+
 async def init_db(db_path: str) -> aiosqlite.Connection:
     """Open the database, enable WAL mode, and create schema if needed."""
     conn = await aiosqlite.connect(db_path)
@@ -255,11 +284,13 @@ async def init_db(db_path: str) -> aiosqlite.Connection:
     await conn.executescript(_SCHEMA)
     await conn.executescript(_USERS_SCHEMA)
     await conn.executescript(_DECKS_SCHEMA)
+    await conn.executescript(_API_USAGE_SCHEMA)
     await _run_migrations(conn)
     await _run_migration_2(conn)
     await _run_migration_3(conn)
     await _run_migration_4(conn)
     await _run_migration_5(conn)
+    await _run_migration_6(conn)
     await conn.executescript(_INDEXES)
     await conn.commit()
     return conn

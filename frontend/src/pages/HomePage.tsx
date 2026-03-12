@@ -8,7 +8,7 @@ import { getLanguageNames } from '../utils/languages'
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { user, dueCount, setDueCount, activeLanguagePair, languagePairVersion, langSwitchMessage, setLangSwitchMessage, appLanguage } = useApp()
+  const { user, isAdmin, dueCount, setDueCount, activeLanguagePair, languagePairVersion, langSwitchMessage, setLangSwitchMessage, appLanguage } = useApp()
   const { t } = useTranslation()
   const [streak, setStreak] = useState(0)
   const lang = getLanguageNames(activeLanguagePair, appLanguage)
@@ -139,6 +139,15 @@ export default function HomePage() {
         >
           {t('home.statistics')}
         </Cell>
+        {isAdmin && (
+          <Cell
+            onClick={() => navigate('/admin')}
+            before={<span style={{ fontSize: '24px' }}>🔧</span>}
+            subtitle="User stats & API costs"
+          >
+            Admin Dashboard
+          </Cell>
+        )}
       </Section>
     </div>
   )

@@ -74,3 +74,24 @@ export interface UserPreferences {
 }
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
+
+export interface AdminGlobalStats {
+  total_users: number
+  active_users_7d: number
+  new_users_7d: number
+  total_translations: number
+  total_explanations: number
+  total_cost_usd: number
+}
+
+export interface AdminUserStats {
+  user_id: number
+  first_name: string | null
+  username: string | null
+  created_at: string
+  last_active: string | null
+  total_cards: number
+  total_translations: number
+  total_explanations: number
+  total_cost_usd: number
+}

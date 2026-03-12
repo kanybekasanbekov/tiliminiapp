@@ -11,6 +11,7 @@ interface AppContextType {
     username?: string
   } | null
   colorScheme: 'light' | 'dark'
+  isAdmin: boolean
   dueCount: number
   setDueCount: (count: number) => void
   activeLanguagePair: string
@@ -25,6 +26,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType>({
   user: null,
   colorScheme: 'light',
+  isAdmin: false,
   dueCount: 0,
   setDueCount: () => {},
   activeLanguagePair: 'ko-en',
@@ -44,6 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [appLanguage, setAppLanguageRaw] = useState<AppLanguage>(
     () => (localStorage.getItem('appLanguage') as AppLanguage) || 'en'
   )
+  const [isAdmin, setIsAdmin] = useState(false)
 
   const setAppLanguage = (lang: AppLanguage) => {
     setAppLanguageRaw(lang)
@@ -83,8 +86,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }).catch(() => {})
   }, [])
 
+  useEffect(() => {
+    api.checkAdmin().then((res) => {
+      setIsAdmin(res.is_admin)
+    }).catch(() => {
+      setIsAdmin(false)
+    })
+  }, [])
+
   return (
-    <AppContext.Provider value={{ user, colorScheme, dueCount, setDueCount, activeLanguagePair, setActiveLanguagePair, languagePairVersion, langSwitchMessage, setLangSwitchMessage, appLanguage, setAppLanguage }}>
+    <AppContext.Provider value={{ user, colorScheme, isAdmin, dueCount, setDueCount, activeLanguagePair, setActiveLanguagePair, languagePairVersion, langSwitchMessage, setLangSwitchMessage, appLanguage, setAppLanguage }}>
       {children}
     </AppContext.Provider>
   )

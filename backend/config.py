@@ -31,5 +31,8 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://your-frontend-domain.com")
 # Logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
+# Admin User ID (Telegram user ID)
+ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "0"))
+
 # Supported language pairs
 SUPPORTED_LANGUAGE_PAIRS = {"ko-en", "en-ko", "ko-ru", "en-ru"}

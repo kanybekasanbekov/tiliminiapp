@@ -8,6 +8,7 @@ import CardsListPage from './pages/CardsListPage'
 import DecksPage from './pages/DecksPage'
 import StatsPage from './pages/StatsPage'
 import SettingsPage from './pages/SettingsPage'
+import AdminPage from './pages/AdminPage'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/cards" element={<CardsListPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <NavigationBar />

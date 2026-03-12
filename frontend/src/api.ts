@@ -9,6 +9,8 @@ import type {
   UserPreferences,
   Difficulty,
   Deck,
+  AdminGlobalStats,
+  AdminUserStats,
 } from './types'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -151,4 +153,14 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+
+  // Admin API
+  checkAdmin: () =>
+    request<{ is_admin: boolean }>('/api/admin/check'),
+
+  getAdminStats: () =>
+    request<AdminGlobalStats>('/api/admin/stats'),
+
+  getAdminUsers: () =>
+    request<{ users: AdminUserStats[] }>('/api/admin/users'),
 }
