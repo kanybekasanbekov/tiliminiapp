@@ -54,7 +54,6 @@ export default function AddCardPage() {
   const [editing, setEditing] = useState(false)
   const [editData, setEditData] = useState<TranslationResult | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
-  const [savedCardId, setSavedCardId] = useState<number | null>(null)
   const [decks, setDecks] = useState<Deck[]>([])
   const [selectedDeckId, setSelectedDeckId] = useState<number | undefined>(undefined)
   const initialized = useRef(false)
@@ -96,7 +95,6 @@ export default function AddCardPage() {
     setLoading(true)
     setError('')
     setTranslation(null)
-    setSavedCardId(null)
     try {
       const result = await api.translateWord(word.trim(), activeLanguagePair)
       setTranslation(result)
@@ -133,7 +131,6 @@ export default function AddCardPage() {
       setEditData(null)
       setEditing(false)
       clearDraft()
-      setSavedCardId(card.id)
       setSuccessMessage(t('add.saved', { word: savedWord }))
     } catch (e: any) {
       setError(e.message || 'Failed to save')
@@ -165,11 +162,6 @@ export default function AddCardPage() {
           fontWeight: 500,
         }}>
           {successMessage}
-          {savedCardId && (
-            <div style={{ marginTop: '10px' }}>
-              <ExplainButton cardId={savedCardId} />
-            </div>
-          )}
         </div>
       )}
 
@@ -273,7 +265,11 @@ export default function AddCardPage() {
             </Section>
           )}
 
-          <div style={{ padding: '16px', display: 'flex', gap: '12px' }}>
+          <div style={{ padding: '12px 16px' }}>
+            <ExplainButton translationData={{ source_text: editData.source_text, target_text: editData.target_text, language_pair: activeLanguagePair }} />
+          </div>
+
+          <div style={{ padding: '4px 16px 16px', display: 'flex', gap: '12px' }}>
             {!editing && (
               <Button
                 size="l"

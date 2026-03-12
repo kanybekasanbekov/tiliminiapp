@@ -85,6 +85,12 @@ export const api = {
       method: 'POST',
     }),
 
+  explainWord: (source_text: string, target_text: string, language_pair: string) =>
+    request<{ explanation: string }>('/api/cards/explain', {
+      method: 'POST',
+      body: JSON.stringify({ source_text, target_text, language_pair }),
+    }),
+
   // Decks API
   getDecks: (languagePair?: string) => {
     let url = '/api/decks'

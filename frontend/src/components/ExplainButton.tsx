@@ -3,7 +3,8 @@ import { api } from '../api'
 import { useTranslation } from '../i18n'
 
 interface ExplainButtonProps {
-  cardId: number
+  cardId?: number
+  translationData?: { source_text: string; target_text: string; language_pair: string }
 }
 
 function SparkleIcon({ size = 16, spinning = false }: { size?: number; spinning?: boolean }) {
@@ -49,7 +50,7 @@ function renderMarkdown(text: string) {
   })
 }
 
-export default function ExplainButton({ cardId }: ExplainButtonProps) {
+export default function ExplainButton({ cardId, translationData }: ExplainButtonProps) {
   const { t } = useTranslation()
   const [state, setState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
   const [explanation, setExplanation] = useState('')
@@ -70,8 +71,15 @@ export default function ExplainButton({ cardId }: ExplainButtonProps) {
     setState('loading')
     setError('')
     try {
-      const result = await api.generateExplanation(cardId)
-      setExplanation(result.explanation)
+      let explanationText: string
+      if (translationData) {
+        const result = await api.explainWord(translationData.source_text, translationData.target_text, translationData.language_pair)
+        explanationText = result.explanation
+      } else {
+        const result = await api.generateExplanation(cardId!)
+        explanationText = result.explanation
+      }
+      setExplanation(explanationText)
       setState('loaded')
       setVisible(true)
     } catch (e: any) {

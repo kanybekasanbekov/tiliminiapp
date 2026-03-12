@@ -17,6 +17,12 @@ class TranslateRequest(BaseModel):
     language_pair: str = "ko-en"
 
 
+class ExplainRequest(BaseModel):
+    source_text: str
+    target_text: str
+    language_pair: str = "ko-en"
+
+
 class CardCreateRequest(BaseModel):
     source_text: str
     target_text: str
@@ -128,6 +134,24 @@ async def search_cards(
         "per_page": per_page,
         "total_pages": total_pages,
     }
+
+
+@router.post("/explain")
+async def explain_word(
+    body: ExplainRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(ensure_user),
+):
+    """Generate explanation for a word without requiring a saved card."""
+    llm = request.app.state.llm
+    try:
+        source_lang, target_lang = body.language_pair.split("-", 1)
+        explanation_text = await llm.explain_word(
+            body.source_text, body.target_text, source_lang, target_lang
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Explanation failed: {str(e)}")
+    return {"explanation": explanation_text}
 
 
 @router.get("/{card_id}")
