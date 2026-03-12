@@ -272,6 +272,37 @@ async def _run_migration_6(conn: aiosqlite.Connection) -> None:
     await conn.commit()
 
 
+async def _run_migration_7(conn: aiosqlite.Connection) -> None:
+    """Migration 7: Backfill api_usage from existing flashcards and explanations."""
+    cursor = await conn.execute("SELECT 1 FROM schema_versions WHERE version = 7")
+    if await cursor.fetchone():
+        return
+
+    # Each saved flashcard represents at least one translate call
+    await conn.execute(
+        """
+        INSERT INTO api_usage (user_id, call_type, model, input_tokens, output_tokens, estimated_cost_usd, language_pair, created_at)
+        SELECT user_id, 'translate', 'unknown', 0, 0, 0.0, language_pair, created_at
+        FROM flashcards
+        """
+    )
+
+    # Each explanation represents one explain call
+    await conn.execute(
+        """
+        INSERT INTO api_usage (user_id, call_type, model, input_tokens, output_tokens, estimated_cost_usd, language_pair, created_at)
+        SELECT e.user_id, 'explain', 'unknown', 0, 0, 0.0, f.language_pair, e.created_at
+        FROM explanations e
+        JOIN flashcards f ON f.id = e.card_id
+        """
+    )
+
+    await conn.execute(
+        "INSERT INTO schema_versions (version, description) VALUES (7, 'backfill api_usage from flashcards and explanations')"
+    )
+    await conn.commit()
+
+
 async def init_db(db_path: str) -> aiosqlite.Connection:
     """Open the database, enable WAL mode, and create schema if needed."""
     conn = await aiosqlite.connect(db_path)
@@ -291,6 +322,7 @@ async def init_db(db_path: str) -> aiosqlite.Connection:
     await _run_migration_4(conn)
     await _run_migration_5(conn)
     await _run_migration_6(conn)
+    await _run_migration_7(conn)
     await conn.executescript(_INDEXES)
     await conn.commit()
     return conn
