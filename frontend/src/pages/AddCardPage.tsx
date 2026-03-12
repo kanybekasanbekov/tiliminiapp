@@ -205,7 +205,7 @@ export default function AddCardPage() {
       {translation && editData && (
         <>
           <Section header={t('add.translationResult')}>
-            <Cell subtitle={lang.source}>
+            <Cell multiline subtitle={lang.source}>
               <span style={{ fontSize: '18px' }}>{editData.source_text}</span>
             </Cell>
             {editing ? (
@@ -231,9 +231,9 @@ export default function AddCardPage() {
               </div>
             ) : (
               <>
-                <Cell subtitle={lang.target}>{editData.target_text}</Cell>
-                <Cell subtitle={`${t('flashcard.example')} (${lang.source})`}>{editData.example_source}</Cell>
-                <Cell subtitle={`${t('flashcard.example')} (${lang.target})`}>{editData.example_target}</Cell>
+                <Cell multiline subtitle={lang.target}>{editData.target_text}</Cell>
+                <Cell multiline subtitle={`${t('flashcard.example')} (${lang.source})`}>{editData.example_source}</Cell>
+                <Cell multiline subtitle={`${t('flashcard.example')} (${lang.target})`}>{editData.example_target}</Cell>
               </>
             )}
           </Section>
