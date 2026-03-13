@@ -6,6 +6,7 @@ import { useApp } from '../contexts/AppContext'
 import type { TranslationResult, Deck, ImageTranslationItem } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 import ExplainButton from '../components/ExplainButton'
+import SpeakerButton from '../components/SpeakerButton'
 import { getLanguageNames } from '../utils/languages'
 import { useTranslation } from '../i18n'
 
@@ -454,19 +455,22 @@ export default function AddCardPage() {
             <>
               <Section header={t('add.translationResult')}>
                 <Cell multiline subtitle={lang.source}>
-                  <span style={{ fontSize: '18px' }}>
+                  <span style={{ fontSize: '18px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                     {editData.source_text}
+                    <SpeakerButton
+                      text={editData.source_text}
+                      lang={activeLanguagePair.split('-')[0]}
+                      size="small"
+                    />
                     {editData.part_of_speech && (
                       <span style={{
                         display: 'inline-block',
-                        marginLeft: '8px',
                         fontSize: '12px',
                         padding: '2px 8px',
                         borderRadius: '6px',
                         backgroundColor: 'var(--tg-button-color)',
                         color: 'var(--tg-button-text-color)',
                         fontWeight: 500,
-                        verticalAlign: 'middle',
                         opacity: 0.85,
                       }}>
                         {editData.part_of_speech}
@@ -746,6 +750,11 @@ export default function AddCardPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '15px', fontWeight: 600 }}>{item.source_text}</span>
+                          <SpeakerButton
+                            text={item.source_text}
+                            lang={activeLanguagePair.split('-')[0]}
+                            size="small"
+                          />
                           {item.part_of_speech && (
                             <span style={{
                               fontSize: '11px',

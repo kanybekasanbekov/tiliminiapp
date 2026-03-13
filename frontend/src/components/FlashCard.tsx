@@ -2,6 +2,7 @@ import type { Flashcard } from '../types'
 import { getLanguageNames } from '../utils/languages'
 import { useTranslation } from '../i18n'
 import { useApp } from '../contexts/AppContext'
+import SpeakerButton from './SpeakerButton'
 
 interface FlashCardProps {
   card: Flashcard
@@ -48,14 +49,25 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
             }}>
               {questionLabel}
             </span>
-            <span style={{
-              fontSize: showSide === 'source' ? '32px' : '24px',
-              fontWeight: 700,
-              lineHeight: 1.3,
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
               marginBottom: '16px',
             }}>
-              {question}
-            </span>
+              <span style={{
+                fontSize: showSide === 'source' ? '32px' : '24px',
+                fontWeight: 700,
+                lineHeight: 1.3,
+              }}>
+                {question}
+              </span>
+              <SpeakerButton
+                text={question}
+                lang={showSide === 'source' ? card.language_pair.split('-')[0] : card.language_pair.split('-')[1]}
+              />
+            </div>
             <span style={{
               fontSize: '14px',
               color: 'var(--tg-hint-color)',
@@ -74,19 +86,22 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
               }}>
                 {lang.source}
               </span>
-              <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '4px' }}>
-                {card.source_text}
+              <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span>{card.source_text}</span>
+                <SpeakerButton
+                  text={card.source_text}
+                  lang={card.language_pair.split('-')[0]}
+                  size="small"
+                />
                 {card.part_of_speech && (
                   <span style={{
                     display: 'inline-block',
-                    marginLeft: '8px',
                     fontSize: '12px',
                     padding: '2px 8px',
                     borderRadius: '6px',
                     backgroundColor: 'var(--tg-button-color)',
                     color: 'var(--tg-button-text-color)',
                     fontWeight: 500,
-                    verticalAlign: 'middle',
                     opacity: 0.85,
                   }}>
                     {card.part_of_speech}

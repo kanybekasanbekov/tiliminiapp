@@ -99,6 +99,7 @@ export interface AdminGlobalStats {
   total_translations: number
   total_explanations: number
   total_image_translations: number
+  total_tts: number
   total_cost_usd: number
 }
 
@@ -112,5 +113,6 @@ export interface AdminUserStats {
   total_translations: number
   total_explanations: number
   total_image_translations: number
+  total_tts: number
   total_cost_usd: number
 }

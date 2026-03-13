@@ -194,4 +194,8 @@ export const api = {
 
   getAdminUsers: () =>
     request<{ users: AdminUserStats[] }>('/api/admin/users'),
+
+  // TTS API
+  getTtsUrl: (text: string, lang: string = 'ko'): string =>
+    `${API_BASE}/api/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}`,
 }

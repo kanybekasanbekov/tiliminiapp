@@ -72,6 +72,19 @@ CREATE TABLE IF NOT EXISTS api_usage (
 );
 """
 
+_TTS_CACHE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS tts_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text_hash TEXT NOT NULL,
+    text TEXT NOT NULL,
+    language TEXT NOT NULL DEFAULT 'ko',
+    audio_data BLOB NOT NULL,
+    content_type TEXT NOT NULL DEFAULT 'audio/mpeg',
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
 _INDEXES = """
 CREATE INDEX IF NOT EXISTS idx_user_review ON flashcards(user_id, next_review);
 CREATE INDEX IF NOT EXISTS idx_user_source ON flashcards(user_id, language_pair, source_text);
@@ -81,6 +94,7 @@ CREATE INDEX IF NOT EXISTS idx_explanation_card ON explanations(card_id);
 CREATE INDEX IF NOT EXISTS idx_user_lang_review ON flashcards(user_id, language_pair, next_review);
 CREATE INDEX IF NOT EXISTS idx_api_usage_user ON api_usage(user_id);
 CREATE INDEX IF NOT EXISTS idx_api_usage_created ON api_usage(created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tts_hash ON tts_cache(text_hash);
 """
 
 _MIGRATION_SETUP = """
@@ -323,6 +337,19 @@ async def _run_migration_8(conn: aiosqlite.Connection) -> None:
     await conn.commit()
 
 
+async def _run_migration_9(conn: aiosqlite.Connection) -> None:
+    """Migration 9: Create tts_cache table for audio caching."""
+    cursor = await conn.execute("SELECT 1 FROM schema_versions WHERE version = 9")
+    if await cursor.fetchone():
+        return
+
+    await conn.executescript(_TTS_CACHE_SCHEMA)
+    await conn.execute(
+        "INSERT INTO schema_versions (version, description) VALUES (9, 'create tts_cache table')"
+    )
+    await conn.commit()
+
+
 async def init_db(db_path: str) -> aiosqlite.Connection:
     """Open the database, enable WAL mode, and create schema if needed."""
     conn = await aiosqlite.connect(db_path)
@@ -336,6 +363,7 @@ async def init_db(db_path: str) -> aiosqlite.Connection:
     await conn.executescript(_USERS_SCHEMA)
     await conn.executescript(_DECKS_SCHEMA)
     await conn.executescript(_API_USAGE_SCHEMA)
+    await conn.executescript(_TTS_CACHE_SCHEMA)
     await _run_migrations(conn)
     await _run_migration_2(conn)
     await _run_migration_3(conn)
@@ -344,6 +372,7 @@ async def init_db(db_path: str) -> aiosqlite.Connection:
     await _run_migration_6(conn)
     await _run_migration_7(conn)
     await _run_migration_8(conn)
+    await _run_migration_9(conn)
     await conn.executescript(_INDEXES)
     await conn.commit()
     return conn

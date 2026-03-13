@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend import config
 from backend.db.connection import close_db, init_db
 from backend.services.llm import create_llm_provider
+from backend.services.tts import TTSService
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,9 @@ async def lifespan(app: FastAPI):
 
     logger.info("Creating LLM provider: %s", config.LLM_PROVIDER)
     app.state.llm = create_llm_provider()
+
+    logger.info("Creating TTS service")
+    app.state.tts = TTSService()
 
     logger.info("Application ready")
     yield
@@ -50,7 +54,7 @@ app.add_middleware(
 )
 
 # Import and include routers
-from backend.routers import admin, cards, decks, practice, stats, users  # noqa: E402
+from backend.routers import admin, cards, decks, practice, stats, tts, users  # noqa: E402
 
 app.include_router(cards.router, prefix="/api/cards", tags=["cards"])
 app.include_router(decks.router, prefix="/api/decks", tags=["decks"])
@@ -58,6 +62,7 @@ app.include_router(practice.router, prefix="/api/practice", tags=["practice"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(users.router, prefix="/api/user", tags=["user"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(tts.router, prefix="/api/tts", tags=["tts"])
 
 
 @app.get("/api/health")

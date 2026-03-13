@@ -36,3 +36,7 @@ ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "0"))
 
 # Supported language pairs
 SUPPORTED_LANGUAGE_PAIRS = {"ko-en", "en-ko", "ko-ru", "en-ru"}
+
+# TTS Configuration
+TTS_MODEL = os.getenv("TTS_MODEL", "gpt-4o-mini-tts")
+TTS_VOICE = os.getenv("TTS_VOICE", "coral")

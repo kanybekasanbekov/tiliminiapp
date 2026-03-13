@@ -673,6 +673,7 @@ async def get_admin_global_stats(conn: aiosqlite.Connection) -> dict:
             COALESCE(SUM(CASE WHEN call_type = 'translate' THEN 1 ELSE 0 END), 0) as total_translations,
             COALESCE(SUM(CASE WHEN call_type = 'explain' THEN 1 ELSE 0 END), 0) as total_explanations,
             COALESCE(SUM(CASE WHEN call_type = 'translate_image' THEN 1 ELSE 0 END), 0) as total_image_translations,
+            COALESCE(SUM(CASE WHEN call_type = 'tts' THEN 1 ELSE 0 END), 0) as total_tts,
             COALESCE(SUM(estimated_cost_usd), 0.0) as total_cost_usd
         FROM api_usage
         """
@@ -686,6 +687,7 @@ async def get_admin_global_stats(conn: aiosqlite.Connection) -> dict:
         "total_translations": row["total_translations"] if row else 0,
         "total_explanations": row["total_explanations"] if row else 0,
         "total_image_translations": row["total_image_translations"] if row else 0,
+        "total_tts": row["total_tts"] if row else 0,
         "total_cost_usd": round(row["total_cost_usd"], 6) if row else 0.0,
     }
 
@@ -704,6 +706,7 @@ async def get_admin_user_stats(conn: aiosqlite.Connection) -> list[dict]:
             COALESCE(au.translate_count, 0) as total_translations,
             COALESCE(au.explain_count, 0) as total_explanations,
             COALESCE(au.image_translate_count, 0) as total_image_translations,
+            COALESCE(au.tts_count, 0) as total_tts,
             COALESCE(au.total_cost, 0.0) as total_cost_usd
         FROM users u
         LEFT JOIN (
@@ -715,6 +718,7 @@ async def get_admin_user_stats(conn: aiosqlite.Connection) -> list[dict]:
                 SUM(CASE WHEN call_type = 'translate' THEN 1 ELSE 0 END) as translate_count,
                 SUM(CASE WHEN call_type = 'explain' THEN 1 ELSE 0 END) as explain_count,
                 SUM(CASE WHEN call_type = 'translate_image' THEN 1 ELSE 0 END) as image_translate_count,
+                SUM(CASE WHEN call_type = 'tts' THEN 1 ELSE 0 END) as tts_count,
                 SUM(estimated_cost_usd) as total_cost
             FROM api_usage GROUP BY user_id
         ) au ON au.user_id = u.id
