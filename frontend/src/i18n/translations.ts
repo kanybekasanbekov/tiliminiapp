@@ -131,6 +131,17 @@ export const translations: Record<string, TranslationMap> = {
     'decks.newDeck': '+ New Deck',
     'decks.newDeckHeader': 'New Deck',
     'decks.confirmDelete': 'Delete "{{name}}"? Cards will be moved to Default.',
+    'decks.editDeck': 'Edit Deck',
+    'decks.save': 'Save',
+    'decks.saving': 'Saving...',
+
+    // Add Card — deck creation
+    'add.newDeck': '+ New Deck',
+    'add.deckName': 'Deck Name',
+    'add.deckPlaceholder': 'e.g. TOPIK Vocab',
+    'add.creating': 'Creating...',
+    'add.create': 'Create',
+    'add.cancel': 'Cancel',
 
     // Stats
     'stats.loading': 'Loading stats...',
@@ -325,6 +336,17 @@ export const translations: Record<string, TranslationMap> = {
     'decks.newDeck': '+ Новая колода',
     'decks.newDeckHeader': 'Новая колода',
     'decks.confirmDelete': 'Удалить «{{name}}»? Карточки переместятся в колоду по умолчанию.',
+    'decks.editDeck': 'Редактировать колоду',
+    'decks.save': 'Сохранить',
+    'decks.saving': 'Сохранение...',
+
+    // Add Card — deck creation
+    'add.newDeck': '+ Новая колода',
+    'add.deckName': 'Название колоды',
+    'add.deckPlaceholder': 'напр. TOPIK словарь',
+    'add.creating': 'Создание...',
+    'add.create': 'Создать',
+    'add.cancel': 'Отмена',
 
     // Stats
     'stats.loading': 'Загрузка статистики...',
@@ -519,6 +541,17 @@ export const translations: Record<string, TranslationMap> = {
     'decks.newDeck': '+ 새 덱',
     'decks.newDeckHeader': '새 덱',
     'decks.confirmDelete': '"{{name}}" 삭제하시겠습니까? 카드는 기본 덱으로 이동됩니다.',
+    'decks.editDeck': '덱 편집',
+    'decks.save': '저장',
+    'decks.saving': '저장 중...',
+
+    // Add Card — deck creation
+    'add.newDeck': '+ 새 덱',
+    'add.deckName': '덱 이름',
+    'add.deckPlaceholder': '예: TOPIK 어휘',
+    'add.creating': '생성 중...',
+    'add.create': '생성',
+    'add.cancel': '취소',
 
     // Stats
     'stats.loading': '통계 로딩 중...',

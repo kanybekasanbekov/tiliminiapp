@@ -76,6 +76,11 @@ export default function AddCardPage() {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Create deck modal state
+  const [showCreateDeckModal, setShowCreateDeckModal] = useState(false)
+  const [createDeckName, setCreateDeckName] = useState('')
+  const [createDeckSaving, setCreateDeckSaving] = useState(false)
+
   // Load decks and user preferred deck, scoped to active language pair
   useEffect(() => {
     Promise.all([api.getDecks(activeLanguagePair), api.getPreferences()]).then(([decksData, prefs]) => {
@@ -268,20 +273,39 @@ export default function AddCardPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  const handleCreateDeck = async () => {
+    if (!createDeckName.trim()) return
+    setCreateDeckSaving(true)
+    try {
+      const newDeck = await api.createDeck({ name: createDeckName.trim(), language_pair: activeLanguagePair })
+      WebApp.HapticFeedback.notificationOccurred('success')
+      setShowCreateDeckModal(false)
+      setCreateDeckName('')
+      // Re-fetch decks and select the new one
+      const decksData = await api.getDecks(activeLanguagePair)
+      setDecks(decksData.decks)
+      setSelectedDeckId(newDeck.id)
+    } catch {
+      WebApp.HapticFeedback.notificationOccurred('error')
+    } finally {
+      setCreateDeckSaving(false)
+    }
+  }
+
   const lang = getLanguageNames(activeLanguagePair, appLanguage)
   const selectedCount = selectedIndices.size
 
   // === Shared deck selector ===
   const renderDeckSelector = () => {
-    if (decks.length <= 1) return null
+    if (decks.length < 1) return null
     return (
       <Section header={t('add.saveToDeck')}>
-        <div style={{ padding: '8px 16px 12px' }}>
+        <div style={{ padding: '8px 16px 12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
           <select
             value={selectedDeckId ?? ''}
             onChange={(e) => setSelectedDeckId(Number(e.target.value))}
             style={{
-              width: '100%',
+              flex: 1,
               padding: '10px 12px',
               borderRadius: '10px',
               border: '1px solid var(--tg-secondary-bg-color)',
@@ -297,6 +321,26 @@ export default function AddCardPage() {
               </option>
             ))}
           </select>
+          <button
+            onClick={() => { setShowCreateDeckModal(true); setCreateDeckName('') }}
+            style={{
+              flexShrink: 0,
+              width: '42px',
+              height: '42px',
+              borderRadius: '10px',
+              border: '1.5px dashed var(--tg-hint-color)',
+              background: 'transparent',
+              color: 'var(--tg-hint-color)',
+              fontSize: '20px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            title={t('add.newDeck')}
+          >
+            +
+          </button>
         </div>
       </Section>
     )
@@ -470,6 +514,66 @@ export default function AddCardPage() {
             </>
           )}
         </>
+      )}
+
+      {/* Create Deck Modal */}
+      {showCreateDeckModal && (
+        <div
+          onClick={() => setShowCreateDeckModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '16px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--tg-bg-color)',
+              borderRadius: '16px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '400px',
+            }}
+          >
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>{t('add.newDeck')}</h2>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
+                {t('add.deckName')}
+              </label>
+              <Input
+                value={createDeckName}
+                onChange={(e) => setCreateDeckName(e.target.value)}
+                placeholder={t('add.deckPlaceholder')}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateDeck()}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Button
+                size="l"
+                mode="outline"
+                stretched
+                onClick={() => setShowCreateDeckModal(false)}
+                disabled={createDeckSaving}
+              >
+                {t('add.cancel')}
+              </Button>
+              <Button
+                size="l"
+                stretched
+                onClick={handleCreateDeck}
+                disabled={createDeckSaving || !createDeckName.trim()}
+              >
+                {createDeckSaving ? t('add.creating') : t('add.create')}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ===== IMAGE MODE ===== */}

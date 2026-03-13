@@ -20,6 +20,11 @@ export default function DecksPage() {
   const [saving, setSaving] = useState(false)
   const [preferredDeckId, setPreferredDeckId] = useState<number | null>(null)
 
+  // Edit deck state
+  const [editingDeck, setEditingDeck] = useState<Deck | null>(null)
+  const [editDeckName, setEditDeckName] = useState('')
+  const [editDeckSaving, setEditDeckSaving] = useState(false)
+
   const loadDecks = async () => {
     try {
       const [data, prefs] = await Promise.all([api.getDecks(activeLanguagePair), api.getPreferences()])
@@ -59,6 +64,22 @@ export default function DecksPage() {
       WebApp.HapticFeedback.notificationOccurred('success')
     } catch {
       WebApp.HapticFeedback.notificationOccurred('error')
+    }
+  }
+
+  const handleEditDeck = async () => {
+    if (!editingDeck || !editDeckName.trim()) return
+    setEditDeckSaving(true)
+    try {
+      await api.updateDeck(editingDeck.id, { name: editDeckName.trim() })
+      WebApp.HapticFeedback.notificationOccurred('success')
+      setEditingDeck(null)
+      setEditDeckName('')
+      loadDecks()
+    } catch {
+      WebApp.HapticFeedback.notificationOccurred('error')
+    } finally {
+      setEditDeckSaving(false)
     }
   }
 
@@ -131,6 +152,23 @@ export default function DecksPage() {
                 <span style={{ fontSize: '14px', color: 'var(--tg-hint-color)' }}>
                   {deck.card_count}
                 </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditDeckName(deck.name)
+                    setEditingDeck(deck)
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    padding: '4px',
+                    opacity: 0.5,
+                  }}
+                >
+                  ✏️
+                </button>
                 {preferredDeckId !== deck.id && (
                   <button
                     onClick={(e) => {
@@ -222,6 +260,65 @@ export default function DecksPage() {
           >
             {t('decks.newDeck')}
           </Button>
+        </div>
+      )}
+
+      {/* Edit Deck Modal */}
+      {editingDeck && (
+        <div
+          onClick={() => setEditingDeck(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '16px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'var(--tg-bg-color)',
+              borderRadius: '16px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '400px',
+            }}
+          >
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>{t('decks.editDeck')}</h2>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
+                {t('decks.deckName')}
+              </label>
+              <Input
+                value={editDeckName}
+                onChange={(e) => setEditDeckName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleEditDeck()}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Button
+                size="l"
+                mode="outline"
+                stretched
+                onClick={() => setEditingDeck(null)}
+                disabled={editDeckSaving}
+              >
+                {t('decks.cancel')}
+              </Button>
+              <Button
+                size="l"
+                stretched
+                onClick={handleEditDeck}
+                disabled={editDeckSaving || !editDeckName.trim()}
+              >
+                {editDeckSaving ? t('decks.saving') : t('decks.save')}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
