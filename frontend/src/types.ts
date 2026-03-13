@@ -34,6 +34,21 @@ export interface TranslationResult {
   example_target: string
 }
 
+export interface ImageTranslationItem extends TranslationResult {
+  is_duplicate: boolean
+}
+
+export interface ImageTranslationResponse {
+  translations: ImageTranslationItem[]
+  count: number
+}
+
+export interface BatchCreateResult {
+  created: number
+  duplicates: number
+  cards: Flashcard[]
+}
+
 export interface PaginatedCards {
   cards: Flashcard[]
   total: number
@@ -81,6 +96,7 @@ export interface AdminGlobalStats {
   new_users_7d: number
   total_translations: number
   total_explanations: number
+  total_image_translations: number
   total_cost_usd: number
 }
 
@@ -93,5 +109,6 @@ export interface AdminUserStats {
   total_cards: number
   total_translations: number
   total_explanations: number
+  total_image_translations: number
   total_cost_usd: number
 }

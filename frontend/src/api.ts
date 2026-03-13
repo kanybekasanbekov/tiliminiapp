@@ -11,6 +11,8 @@ import type {
   Deck,
   AdminGlobalStats,
   AdminUserStats,
+  ImageTranslationResponse,
+  BatchCreateResult,
 } from './types'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -91,6 +93,35 @@ export const api = {
     request<{ explanation: string }>('/api/cards/explain', {
       method: 'POST',
       body: JSON.stringify({ source_text, target_text, language_pair }),
+    }),
+
+  translateImage: async (image: File, languagePair: string = 'ko-en'): Promise<ImageTranslationResponse> => {
+    const formData = new FormData()
+    formData.append('image', image)
+    formData.append('language_pair', languagePair)
+
+    const headers: Record<string, string> = {}
+    const initData = WebApp.initData
+    if (initData) {
+      headers['Authorization'] = `tma ${initData}`
+    }
+    // Do NOT set Content-Type — browser sets it with boundary for multipart/form-data
+    const res = await fetch(`${API_BASE}/api/cards/translate-image`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    })
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ detail: 'Request failed' }))
+      throw new Error(error.detail || `HTTP ${res.status}`)
+    }
+    return res.json()
+  },
+
+  createCardsBatch: (cards: Array<{ source_text: string; target_text: string; example_source?: string; example_target?: string; language_pair?: string }>, deckId?: number) =>
+    request<BatchCreateResult>('/api/cards/batch', {
+      method: 'POST',
+      body: JSON.stringify({ cards, deck_id: deckId }),
     }),
 
   // Decks API

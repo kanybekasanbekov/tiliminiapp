@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import base64
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from backend.auth import ensure_user
@@ -10,6 +11,9 @@ from backend.config import SUPPORTED_LANGUAGE_PAIRS
 from backend.db import models
 
 router = APIRouter()
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
 class TranslateRequest(BaseModel):
@@ -38,6 +42,11 @@ class CardUpdateRequest(BaseModel):
     example_target: str | None = None
 
 
+class BatchCreateRequest(BaseModel):
+    cards: list[CardCreateRequest]
+    deck_id: int | None = None
+
+
 @router.post("/translate")
 async def translate_word(
     body: TranslateRequest,
@@ -60,6 +69,101 @@ async def translate_word(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}")
+
+
+@router.post("/translate-image")
+async def translate_image(
+    request: Request,
+    image: UploadFile = File(...),
+    language_pair: str = Form("ko-en"),
+    user: dict[str, Any] = Depends(ensure_user),
+):
+    """Extract and translate all words from an uploaded image."""
+    # Validate file type
+    content_type = image.content_type or ""
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported image type: {content_type}. Use JPEG, PNG, or WebP.")
+
+    # Read and validate size
+    image_bytes = await image.read()
+    if len(image_bytes) > MAX_IMAGE_SIZE:
+        raise HTTPException(status_code=400, detail="Image too large. Maximum size is 5MB.")
+
+    if language_pair not in SUPPORTED_LANGUAGE_PAIRS:
+        raise HTTPException(status_code=400, detail=f"Unsupported language pair: {language_pair}")
+
+    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+
+    llm = request.app.state.llm
+    try:
+        source_lang, target_lang = language_pair.split("-", 1)
+        results, usage = await llm.translate_image(image_base64, content_type, source_lang, target_lang)
+        db = request.app.state.db
+        await models.log_api_usage(
+            db, user["id"], "translate_image", usage["model"],
+            usage["input_tokens"], usage["output_tokens"],
+            usage["estimated_cost_usd"], language_pair,
+        )
+        # Check for duplicates
+        source_texts = [r.source_text for r in results]
+        duplicates = await models.check_duplicates_batch(db, user["id"], source_texts, language_pair)
+        translations = []
+        for r in results:
+            item = r.model_dump()
+            item["is_duplicate"] = r.source_text in duplicates
+            translations.append(item)
+        return {"translations": translations, "count": len(translations)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image translation failed: {str(e)}")
+
+
+@router.post("/batch")
+async def create_cards_batch(
+    body: BatchCreateRequest,
+    request: Request,
+    user: dict[str, Any] = Depends(ensure_user),
+):
+    """Create multiple flashcards in one request."""
+    db = request.app.state.db
+    user_id = user["id"]
+
+    if not body.cards:
+        raise HTTPException(status_code=400, detail="No cards provided")
+    if len(body.cards) > 100:
+        raise HTTPException(status_code=400, detail="Maximum 100 cards per batch")
+
+    # Validate all cards share the same language pair
+    language_pair = body.cards[0].language_pair
+    if language_pair not in SUPPORTED_LANGUAGE_PAIRS:
+        raise HTTPException(status_code=400, detail=f"Unsupported language pair: {language_pair}")
+    if any(c.language_pair != language_pair for c in body.cards):
+        raise HTTPException(status_code=400, detail="All cards in a batch must have the same language pair")
+
+    # Check all duplicates at once
+    source_texts = [c.source_text for c in body.cards]
+    existing = await models.check_duplicates_batch(db, user_id, source_texts, language_pair)
+
+    created_cards = []
+    duplicates_count = 0
+    for card in body.cards:
+        if card.source_text in existing:
+            duplicates_count += 1
+            continue
+        deck_id = body.deck_id or card.deck_id
+        card_id = await models.add_flashcard(
+            db, user_id, card.source_text, card.target_text,
+            card.example_source, card.example_target, card.language_pair,
+            deck_id=deck_id,
+        )
+        saved = await models.get_flashcard_by_id(db, card_id, user_id)
+        if saved:
+            created_cards.append(saved)
+        # Add to existing set to catch duplicates within the batch itself
+        existing.add(card.source_text)
+
+    return {"created": len(created_cards), "duplicates": duplicates_count, "cards": created_cards}
 
 
 @router.post("")

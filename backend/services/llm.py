@@ -117,6 +117,71 @@ def _extract_json(text: str) -> dict:
     raise ValueError(f"Could not extract JSON from LLM response: {text[:200]}")
 
 
+def _extract_json_array(text: str) -> list[dict]:
+    """Extract a JSON array from LLM response, handling markdown code blocks."""
+    text = text.strip()
+
+    try:
+        result = json.loads(text)
+        if isinstance(result, list):
+            return result
+    except json.JSONDecodeError:
+        pass
+
+    match = re.search(r"```(?:json)?\s*\n?(.*?)\n?\s*```", text, re.DOTALL)
+    if match:
+        try:
+            result = json.loads(match.group(1).strip())
+            if isinstance(result, list):
+                return result
+        except json.JSONDecodeError:
+            pass
+
+    match = re.search(r"\[.*\]", text, re.DOTALL)
+    if match:
+        try:
+            result = json.loads(match.group(0))
+            if isinstance(result, list):
+                return result
+        except json.JSONDecodeError:
+            pass
+
+    raise ValueError(f"Could not extract JSON array from LLM response: {text[:200]}")
+
+
+def build_image_translation_prompt(source_lang: str, target_lang: str) -> str:
+    """Build a prompt for extracting and translating words from an image."""
+    pair_key = f"{source_lang}-{target_lang}"
+    pair = SUPPORTED_PAIRS.get(pair_key)
+    if pair:
+        source_name = pair["source_name"]
+        target_name = pair["target_name"]
+        extra = pair["extra_instructions"]
+    else:
+        source_name = source_lang.upper()
+        target_name = target_lang.upper()
+        extra = ""
+
+    extra_line = f"\n{extra}" if extra else ""
+
+    return f"""You are a {source_name}-{target_name} language expert. The user will provide an image containing a list of vocabulary words or phrases in {source_name}.
+
+Your task:
+1. Extract ALL words and phrases visible in the image.
+2. For each word/phrase, provide a translation with an example sentence.
+
+For each entry, provide:
+- `source_text`: The word/phrase in {source_name} (cleaned/corrected if needed)
+- `target_text`: The translation in {target_name}. If the word has multiple meanings, provide the most common meaning.
+- `example_source`: An example sentence in {source_name} using this word.
+- `example_target`: The {target_name} translation of the example sentence.
+{extra_line}
+Respond with ONLY a raw JSON array, no markdown, no code fences, no explanation:
+[{{"source_text": "...", "target_text": "...", "example_source": "...", "example_target": "..."}}, ...]
+
+Extract every word/phrase you can see. Do not skip any."""
+
+
 class TranslationResult(BaseModel):
     """Structured output from LLM translation."""
 
@@ -159,6 +224,11 @@ class LLMProvider(ABC):
     @abstractmethod
     async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict]:
         """Generate a detailed explanation for a word. Returns (markdown text, usage info)."""
+        ...
+
+    @abstractmethod
+    async def translate_image(self, image_base64: str, media_type: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[list[TranslationResult], dict]:
+        """Extract and translate all words from an image. Returns (list of translations, usage info)."""
         ...
 
 
@@ -250,6 +320,64 @@ class AnthropicProvider(LLMProvider):
                 await asyncio.sleep(delay)
         raise RuntimeError("Unreachable")
 
+    async def translate_image(self, image_base64: str, media_type: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[list[TranslationResult], dict]:
+        system_prompt = build_image_translation_prompt(source_lang, target_lang)
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = await self.client.messages.create(
+                    model=self.model,
+                    max_tokens=8192,
+                    system=system_prompt,
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": media_type,
+                                    "data": image_base64,
+                                },
+                            },
+                            {
+                                "type": "text",
+                                "text": "Extract and translate all words/phrases from this image.",
+                            },
+                        ],
+                    }],
+                )
+                text = ""
+                for block in response.content:
+                    if hasattr(block, "text"):
+                        text = block.text
+                        break
+                logger.debug("Anthropic image translate response: %s", text[:500])
+                items = _extract_json_array(text)
+                results = [TranslationResult.model_validate(item) for item in items]
+                usage = {
+                    "model": self.model,
+                    "input_tokens": getattr(response.usage, 'input_tokens', 0),
+                    "output_tokens": getattr(response.usage, 'output_tokens', 0),
+                }
+                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
+                return results, usage
+            except (
+                anthropic.APIError,
+                anthropic.APIConnectionError,
+                anthropic.RateLimitError,
+            ) as e:
+                if attempt == MAX_RETRIES - 1:
+                    raise
+                delay = RETRY_DELAY_BASE * (2**attempt)
+                logger.warning(
+                    "Anthropic image translate attempt %d failed: %s. Retrying in %.1fs",
+                    attempt + 1,
+                    e,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+        raise RuntimeError("Unreachable")
+
 
 class OpenAIProvider(LLMProvider):
     """Uses OpenAI API for translation."""
@@ -331,6 +459,73 @@ class OpenAIProvider(LLMProvider):
                 delay = RETRY_DELAY_BASE * (2**attempt)
                 logger.warning(
                     "OpenAI explain attempt %d failed: %s. Retrying in %.1fs",
+                    attempt + 1,
+                    e,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+        raise RuntimeError("Unreachable")
+
+    async def translate_image(self, image_base64: str, media_type: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[list[TranslationResult], dict]:
+        system_prompt = build_image_translation_prompt(source_lang, target_lang)
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    max_tokens=8192,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": system_prompt + '\n\nIMPORTANT: Wrap the array in a JSON object like: {"words": [...]}'},
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:{media_type};base64,{image_base64}",
+                                    },
+                                },
+                                {
+                                    "type": "text",
+                                    "text": "Extract and translate all words/phrases from this image.",
+                                },
+                            ],
+                        },
+                    ],
+                )
+                text = response.choices[0].message.content or "[]"
+                logger.debug("OpenAI image translate response: %s", text[:500])
+                # OpenAI json_object mode requires a JSON object, so we wrap in {"words": [...]}
+                try:
+                    parsed = json.loads(text)
+                    if isinstance(parsed, dict) and "words" in parsed:
+                        items = parsed["words"]
+                    elif isinstance(parsed, list):
+                        items = parsed
+                    else:
+                        # Try to find any list value in the dict
+                        items = next((v for v in parsed.values() if isinstance(v, list)), [])
+                except json.JSONDecodeError:
+                    items = _extract_json_array(text)
+                results = [TranslationResult.model_validate(item) for item in items]
+                usage_obj = response.usage
+                usage = {
+                    "model": self.model,
+                    "input_tokens": getattr(usage_obj, 'prompt_tokens', 0) if usage_obj else 0,
+                    "output_tokens": getattr(usage_obj, 'completion_tokens', 0) if usage_obj else 0,
+                }
+                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
+                return results, usage
+            except (
+                openai.APIError,
+                openai.APIConnectionError,
+                openai.RateLimitError,
+            ) as e:
+                if attempt == MAX_RETRIES - 1:
+                    raise
+                delay = RETRY_DELAY_BASE * (2**attempt)
+                logger.warning(
+                    "OpenAI image translate attempt %d failed: %s. Retrying in %.1fs",
                     attempt + 1,
                     e,
                     delay,

@@ -83,6 +83,7 @@ export default function AdminPage() {
 
           <Section header="API Usage">
             <Cell subtitle="Total translation calls">{stats.total_translations}</Cell>
+            <Cell subtitle="Total image translation calls">{stats.total_image_translations}</Cell>
             <Cell subtitle="Total explanation calls">{stats.total_explanations}</Cell>
             <Cell subtitle="Total estimated cost">
               <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>
@@ -112,6 +113,7 @@ export default function AdminPage() {
                   <th style={{ padding: '8px 12px', fontWeight: 600 }}>User</th>
                   <th style={{ padding: '8px 6px', fontWeight: 600, textAlign: 'right' }}>Cards</th>
                   <th style={{ padding: '8px 6px', fontWeight: 600, textAlign: 'right' }}>Trans.</th>
+                  <th style={{ padding: '8px 6px', fontWeight: 600, textAlign: 'right' }}>Img.</th>
                   <th style={{ padding: '8px 6px', fontWeight: 600, textAlign: 'right' }}>Expl.</th>
                   <th style={{ padding: '8px 12px', fontWeight: 600, textAlign: 'right' }}>Cost</th>
                 </tr>
@@ -136,6 +138,9 @@ export default function AdminPage() {
                     </td>
                     <td style={{ padding: '10px 6px', textAlign: 'right', fontFamily: 'monospace' }}>
                       {u.total_translations}
+                    </td>
+                    <td style={{ padding: '10px 6px', textAlign: 'right', fontFamily: 'monospace' }}>
+                      {u.total_image_translations}
                     </td>
                     <td style={{ padding: '10px 6px', textAlign: 'right', fontFamily: 'monospace' }}>
                       {u.total_explanations}
