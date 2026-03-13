@@ -76,6 +76,22 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
               </span>
               <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '4px' }}>
                 {card.source_text}
+                {card.part_of_speech && (
+                  <span style={{
+                    display: 'inline-block',
+                    marginLeft: '8px',
+                    fontSize: '12px',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--tg-button-color)',
+                    color: 'var(--tg-button-text-color)',
+                    fontWeight: 500,
+                    verticalAlign: 'middle',
+                    opacity: 0.85,
+                  }}>
+                    {card.part_of_speech}
+                  </span>
+                )}
               </div>
             </div>
 

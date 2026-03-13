@@ -118,7 +118,7 @@ export const api = {
     return res.json()
   },
 
-  createCardsBatch: (cards: Array<{ source_text: string; target_text: string; example_source?: string; example_target?: string; language_pair?: string }>, deckId?: number) =>
+  createCardsBatch: (cards: Array<{ source_text: string; target_text: string; example_source?: string; example_target?: string; part_of_speech?: string | null; language_pair?: string }>, deckId?: number) =>
     request<BatchCreateResult>('/api/cards/batch', {
       method: 'POST',
       body: JSON.stringify({ cards, deck_id: deckId }),

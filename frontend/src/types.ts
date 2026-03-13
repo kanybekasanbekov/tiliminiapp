@@ -13,6 +13,7 @@ export interface Flashcard {
   repetitions: number
   deck_id: number
   deck_name?: string
+  part_of_speech: string | null
 }
 
 export interface Deck {
@@ -32,6 +33,7 @@ export interface TranslationResult {
   target_text: string
   example_source: string
   example_target: string
+  part_of_speech: string | null
 }
 
 export interface ImageTranslationItem extends TranslationResult {

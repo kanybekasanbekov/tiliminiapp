@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS flashcards (
     ease_factor REAL DEFAULT 2.5,
     interval_days INTEGER DEFAULT 0,
     repetitions INTEGER DEFAULT 0,
-    deck_id INTEGER NOT NULL DEFAULT 0
+    deck_id INTEGER NOT NULL DEFAULT 0,
+    part_of_speech TEXT
 );
 """
 
@@ -303,6 +304,25 @@ async def _run_migration_7(conn: aiosqlite.Connection) -> None:
     await conn.commit()
 
 
+async def _run_migration_8(conn: aiosqlite.Connection) -> None:
+    """Migration 8: Add part_of_speech column to flashcards."""
+    cursor = await conn.execute("SELECT 1 FROM schema_versions WHERE version = 8")
+    if await cursor.fetchone():
+        return
+
+    cursor = await conn.execute("PRAGMA table_info(flashcards)")
+    columns = {row[1] for row in await cursor.fetchall()}
+    if "part_of_speech" not in columns:
+        await conn.execute(
+            "ALTER TABLE flashcards ADD COLUMN part_of_speech TEXT DEFAULT NULL"
+        )
+
+    await conn.execute(
+        "INSERT INTO schema_versions (version, description) VALUES (8, 'add part_of_speech to flashcards')"
+    )
+    await conn.commit()
+
+
 async def init_db(db_path: str) -> aiosqlite.Connection:
     """Open the database, enable WAL mode, and create schema if needed."""
     conn = await aiosqlite.connect(db_path)
@@ -323,6 +343,7 @@ async def init_db(db_path: str) -> aiosqlite.Connection:
     await _run_migration_5(conn)
     await _run_migration_6(conn)
     await _run_migration_7(conn)
+    await _run_migration_8(conn)
     await conn.executescript(_INDEXES)
     await conn.commit()
     return conn

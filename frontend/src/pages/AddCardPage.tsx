@@ -238,6 +238,7 @@ export default function AddCardPage() {
           target_text: item.target_text,
           example_source: item.example_source,
           example_target: item.example_target,
+          part_of_speech: item.part_of_speech,
           language_pair: activeLanguagePair,
         }
       })
@@ -453,7 +454,25 @@ export default function AddCardPage() {
             <>
               <Section header={t('add.translationResult')}>
                 <Cell multiline subtitle={lang.source}>
-                  <span style={{ fontSize: '18px' }}>{editData.source_text}</span>
+                  <span style={{ fontSize: '18px' }}>
+                    {editData.source_text}
+                    {editData.part_of_speech && (
+                      <span style={{
+                        display: 'inline-block',
+                        marginLeft: '8px',
+                        fontSize: '12px',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        backgroundColor: 'var(--tg-button-color)',
+                        color: 'var(--tg-button-text-color)',
+                        fontWeight: 500,
+                        verticalAlign: 'middle',
+                        opacity: 0.85,
+                      }}>
+                        {editData.part_of_speech}
+                      </span>
+                    )}
+                  </span>
                 </Cell>
                 {editing ? (
                   <div style={{ padding: '8px 16px' }}>
@@ -727,6 +746,19 @@ export default function AddCardPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '15px', fontWeight: 600 }}>{item.source_text}</span>
+                          {item.part_of_speech && (
+                            <span style={{
+                              fontSize: '11px',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              backgroundColor: 'var(--tg-button-color)',
+                              color: 'var(--tg-button-text-color)',
+                              fontWeight: 500,
+                              opacity: 0.85,
+                            }}>
+                              {item.part_of_speech}
+                            </span>
+                          )}
                           <span style={{ fontSize: '13px', color: 'var(--tg-hint-color)' }}>→</span>
                           <span style={{ fontSize: '14px', color: 'var(--tg-hint-color)' }}>{item.target_text}</span>
                         </div>

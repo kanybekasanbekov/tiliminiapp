@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 
 import anthropic
 import openai
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from backend import config
 
@@ -81,12 +81,13 @@ def build_translation_prompt(source_lang: str, target_lang: str) -> str:
 2. `target_text`: The translation in {target_name}. If the word has multiple meanings, provide the translation for each meaning.
 3. `example_source`: An example sentence in {source_name} using this word.
 4. `example_target`: The {target_name} translation of the example sentence.
+5. `part_of_speech`: The grammatical category of the source word (e.g. noun, verb, adjective, adverb, preposition, conjunction, pronoun, particle, etc.)
 
 If the input is in {target_name}, translate it to {source_name} for `source_text` and use the original input as `target_text`.
 If the input is in {source_name}, use it as `source_text` and translate to {target_name} for `target_text`.{extra_line}
 
 Respond with ONLY a raw JSON object, no markdown, no code fences, no explanation:
-{{"source_text": "...", "target_text": "...", "example_source": "...", "example_target": "..."}}
+{{"source_text": "...", "target_text": "...", "example_source": "...", "example_target": "...", "part_of_speech": "..."}}
 
 If the word is not valid in either {source_name} or {target_name}, respond with "Invalid word"."""
 
@@ -175,9 +176,10 @@ For each entry, provide:
 - `target_text`: The translation in {target_name}. If the word has multiple meanings, provide the most common meaning.
 - `example_source`: An example sentence in {source_name} using this word.
 - `example_target`: The {target_name} translation of the example sentence.
+- `part_of_speech`: The grammatical category (e.g. noun, verb, adjective, adverb, etc.)
 {extra_line}
 Respond with ONLY a raw JSON array, no markdown, no code fences, no explanation:
-[{{"source_text": "...", "target_text": "...", "example_source": "...", "example_target": "..."}}, ...]
+[{{"source_text": "...", "target_text": "...", "example_source": "...", "example_target": "...", "part_of_speech": "..."}}, ...]
 
 Extract every word/phrase you can see. Do not skip any."""
 
@@ -189,6 +191,14 @@ class TranslationResult(BaseModel):
     target_text: str
     example_source: str
     example_target: str
+    part_of_speech: str | None = None
+
+    @field_validator("part_of_speech", mode="before")
+    @classmethod
+    def normalize_pos(cls, v: str | None) -> str | None:
+        if isinstance(v, str) and v.strip():
+            return v.strip().lower()
+        return None
 
 
 def build_explanation_prompt(word: str, translation: str, source_lang: str, target_lang: str) -> str:

@@ -251,6 +251,7 @@ async def add_flashcard(
     example_target: str | None = None,
     language_pair: str = "ko-en",
     deck_id: int | None = None,
+    part_of_speech: str | None = None,
 ) -> int:
     """Insert a new flashcard. Returns the new row id."""
     if deck_id is None:
@@ -258,10 +259,10 @@ async def add_flashcard(
         deck_id = deck["id"]
     cursor = await conn.execute(
         """
-        INSERT INTO flashcards (user_id, source_text, target_text, example_source, example_target, language_pair, deck_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO flashcards (user_id, source_text, target_text, example_source, example_target, language_pair, deck_id, part_of_speech)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (user_id, source_text, target_text, example_source, example_target, language_pair, deck_id),
+        (user_id, source_text, target_text, example_source, example_target, language_pair, deck_id, part_of_speech),
     )
     await conn.commit()
     return cursor.lastrowid  # type: ignore[return-value]

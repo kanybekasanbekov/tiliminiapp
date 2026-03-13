@@ -34,6 +34,7 @@ class CardCreateRequest(BaseModel):
     example_target: str | None = None
     language_pair: str = "ko-en"
     deck_id: int | None = None
+    part_of_speech: str | None = None
 
 
 class CardUpdateRequest(BaseModel):
@@ -156,6 +157,7 @@ async def create_cards_batch(
             db, user_id, card.source_text, card.target_text,
             card.example_source, card.example_target, card.language_pair,
             deck_id=deck_id,
+            part_of_speech=card.part_of_speech,
         )
         saved = await models.get_flashcard_by_id(db, card_id, user_id)
         if saved:
@@ -183,6 +185,7 @@ async def create_card(
     card_id = await models.add_flashcard(
         db, user_id, body.source_text, body.target_text, body.example_source, body.example_target, body.language_pair,
         deck_id=body.deck_id,
+        part_of_speech=body.part_of_speech,
     )
     card = await models.get_flashcard_by_id(db, card_id, user_id)
     return card
