@@ -1,7 +1,6 @@
 const LANGUAGE_MAP: Record<string, Record<string, string>> = {
   en: { ko: 'Korean', en: 'English', ru: 'Russian', ky: 'Kyrgyz', ja: 'Japanese', zh: 'Chinese' },
   ru: { ko: 'Корейский', en: 'Английский', ru: 'Русский', ky: 'Кыргызский', ja: 'Японский', zh: 'Китайский' },
-  ko: { ko: '한국어', en: '영어', ru: '러시아어', ky: '키르기스어', ja: '일본어', zh: '중국어' },
 }
 
 const LANGUAGE_MAP_PREP: Record<string, Record<string, string>> = {

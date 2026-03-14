@@ -1,7 +1,7 @@
 import { useApp } from '../contexts/AppContext'
 import { translations } from './translations'
 
-export type AppLanguage = 'en' | 'ru' | 'ko'
+export type AppLanguage = 'en' | 'ru'
 
 export function useTranslation() {
   const { appLanguage } = useApp()

@@ -8,11 +8,10 @@ import type { AppLanguage } from '../i18n'
 import { api } from '../api'
 import { getLanguageNames } from '../utils/languages'
 
-const SUPPORTED_PAIRS = ['ko-en', 'en-ko', 'ko-ru', 'en-ru']
+const SUPPORTED_PAIRS = ['ko-en', 'ko-ru', 'en-ru']
 const APP_LANGUAGES: { code: AppLanguage; nativeName: string }[] = [
   { code: 'en', nativeName: 'English' },
   { code: 'ru', nativeName: 'Русский' },
-  { code: 'ko', nativeName: '한국어' },
 ]
 
 export default function SettingsPage() {
@@ -74,6 +73,23 @@ export default function SettingsPage() {
   return (
     <div className="page">
       <div style={{ padding: '24px 16px 16px' }}>
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--tg-button-color)',
+            fontSize: '15px',
+            padding: '0',
+            cursor: 'pointer',
+            marginBottom: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+          }}
+        >
+          ← {t('practice.backToHome')}
+        </button>
         <h1 style={{ fontSize: '28px', fontWeight: 700 }}>{t('settings.title')}</h1>
         <p style={{ color: 'var(--tg-hint-color)', marginTop: '4px', fontSize: '15px' }}>
           {t('settings.subtitle')}
