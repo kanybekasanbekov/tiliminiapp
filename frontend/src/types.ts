@@ -92,6 +92,21 @@ export interface UserPreferences {
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
+export type StudyMode = 'flip' | 'type' | 'quiz'
+
+export interface QuizOptionsResponse {
+  options: string[]
+}
+
+export interface AccuracyStats {
+  total_reviews: number
+  flip_mode: { total: number }
+  type_mode: { total: number; correct: number; accuracy: number }
+  quiz_mode: { total: number; correct: number; accuracy: number }
+  last_7_days_accuracy: number
+  last_30_days_accuracy: number
+}
+
 export interface AdminGlobalStats {
   total_users: number
   active_users_7d: number

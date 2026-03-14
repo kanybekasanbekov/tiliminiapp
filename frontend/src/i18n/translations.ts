@@ -67,6 +67,22 @@ export const translations: Record<string, TranslationMap> = {
     'practice.showAnswer': 'Show Answer',
     'practice.allDecks': 'All ({{count}})',
 
+    // Study modes
+    'practice.modeFlip': 'Flip',
+    'practice.modeType': 'Type',
+    'practice.modeQuiz': 'Quiz',
+    'practice.typeYourAnswer': 'Type your answer...',
+    'practice.check': 'Check',
+    'practice.correct': 'Correct!',
+    'practice.incorrect': 'Incorrect',
+    'practice.almostCorrect': 'Almost correct!',
+    'practice.correctAnswer': 'Correct answer:',
+    'practice.continue': 'Continue',
+    'practice.tryAgain': 'Try again',
+    'practice.addMoreCards': 'Add more cards to use Quiz mode',
+    'practice.accuracy': '{{correct}}/{{total}} correct ({{pct}}%)',
+    'practice.reviewedCount': '{{count}} cards reviewed',
+
     // Cards List
     'cards.loading': 'Loading cards...',
     'cards.myCards': 'My Cards',
@@ -167,6 +183,9 @@ export const translations: Record<string, TranslationMap> = {
     'stats.difficultyValues': 'Easy = 5, Medium = 3, Hard = 1',
     'stats.learningCurve': 'Learning Curve',
     'stats.learningCurveSub': 'Reviews increase intervals exponentially',
+    'stats.accuracyTitle': 'Accuracy',
+    'stats.last7Days': 'Last 7 days',
+    'stats.last30Days': 'Last 30 days',
 
     // Settings
     'settings.title': 'Settings',
@@ -272,6 +291,22 @@ export const translations: Record<string, TranslationMap> = {
     'practice.showAnswer': 'Показать ответ',
     'practice.allDecks': 'Все ({{count}})',
 
+    // Study modes
+    'practice.modeFlip': 'Карточки',
+    'practice.modeType': 'Ввод',
+    'practice.modeQuiz': 'Тест',
+    'practice.typeYourAnswer': 'Введите ответ...',
+    'practice.check': 'Проверить',
+    'practice.correct': 'Правильно!',
+    'practice.incorrect': 'Неправильно',
+    'practice.almostCorrect': 'Почти правильно!',
+    'practice.correctAnswer': 'Правильный ответ:',
+    'practice.continue': 'Продолжить',
+    'practice.tryAgain': 'Попробуйте ещё',
+    'practice.addMoreCards': 'Добавьте больше карточек для режима Тест',
+    'practice.accuracy': '{{correct}}/{{total}} правильно ({{pct}}%)',
+    'practice.reviewedCount': '{{count}} карт. повторено',
+
     // Cards List
     'cards.loading': 'Загрузка карточек...',
     'cards.myCards': 'Мои карточки',
@@ -372,6 +407,9 @@ export const translations: Record<string, TranslationMap> = {
     'stats.difficultyValues': 'Легко = 5, Средне = 3, Сложно = 1',
     'stats.learningCurve': 'Кривая обучения',
     'stats.learningCurveSub': 'Интервалы растут экспоненциально',
+    'stats.accuracyTitle': 'Точность',
+    'stats.last7Days': 'За 7 дней',
+    'stats.last30Days': 'За 30 дней',
 
     // Settings
     'settings.title': 'Настройки',

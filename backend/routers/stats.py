@@ -23,3 +23,17 @@ async def get_stats(
     db = request.app.state.db
     stats = await models.get_user_stats(db, user["id"], language_pair=language_pair)
     return stats
+
+
+@router.get("/accuracy")
+async def get_accuracy_stats(
+    request: Request,
+    language_pair: str | None = None,
+    user: dict[str, Any] = Depends(ensure_user),
+):
+    """Get accuracy statistics per study mode from review history."""
+    if language_pair is not None and language_pair not in SUPPORTED_LANGUAGE_PAIRS:
+        raise HTTPException(status_code=400, detail=f"Unsupported language pair: {language_pair}")
+    db = request.app.state.db
+    stats = await models.get_accuracy_stats(db, user["id"], language_pair=language_pair)
+    return stats

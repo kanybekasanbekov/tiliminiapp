@@ -85,6 +85,19 @@ CREATE TABLE IF NOT EXISTS tts_cache (
 );
 """
 
+_REVIEW_HISTORY_SCHEMA = """
+CREATE TABLE IF NOT EXISTS review_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    card_id INTEGER NOT NULL,
+    study_mode TEXT NOT NULL DEFAULT 'flip',
+    was_correct INTEGER,
+    quality INTEGER NOT NULL,
+    response_time_ms INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
 _INDEXES = """
 CREATE INDEX IF NOT EXISTS idx_user_review ON flashcards(user_id, next_review);
 CREATE INDEX IF NOT EXISTS idx_user_source ON flashcards(user_id, language_pair, source_text);
@@ -95,6 +108,9 @@ CREATE INDEX IF NOT EXISTS idx_user_lang_review ON flashcards(user_id, language_
 CREATE INDEX IF NOT EXISTS idx_api_usage_user ON api_usage(user_id);
 CREATE INDEX IF NOT EXISTS idx_api_usage_created ON api_usage(created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tts_hash ON tts_cache(text_hash);
+CREATE INDEX IF NOT EXISTS idx_review_history_user ON review_history(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_review_history_card ON review_history(card_id);
+CREATE INDEX IF NOT EXISTS idx_review_history_user_mode ON review_history(user_id, study_mode, created_at);
 """
 
 _MIGRATION_SETUP = """
@@ -350,6 +366,19 @@ async def _run_migration_9(conn: aiosqlite.Connection) -> None:
     await conn.commit()
 
 
+async def _run_migration_10(conn: aiosqlite.Connection) -> None:
+    """Migration 10: Create review_history table."""
+    cursor = await conn.execute("SELECT 1 FROM schema_versions WHERE version = 10")
+    if await cursor.fetchone():
+        return
+
+    await conn.executescript(_REVIEW_HISTORY_SCHEMA)
+    await conn.execute(
+        "INSERT INTO schema_versions (version, description) VALUES (10, 'create review_history table')"
+    )
+    await conn.commit()
+
+
 async def init_db(db_path: str) -> aiosqlite.Connection:
     """Open the database, enable WAL mode, and create schema if needed."""
     conn = await aiosqlite.connect(db_path)
@@ -364,6 +393,7 @@ async def init_db(db_path: str) -> aiosqlite.Connection:
     await conn.executescript(_DECKS_SCHEMA)
     await conn.executescript(_API_USAGE_SCHEMA)
     await conn.executescript(_TTS_CACHE_SCHEMA)
+    await conn.executescript(_REVIEW_HISTORY_SCHEMA)
     await _run_migrations(conn)
     await _run_migration_2(conn)
     await _run_migration_3(conn)
@@ -373,6 +403,7 @@ async def init_db(db_path: str) -> aiosqlite.Connection:
     await _run_migration_7(conn)
     await _run_migration_8(conn)
     await _run_migration_9(conn)
+    await _run_migration_10(conn)
     await conn.executescript(_INDEXES)
     await conn.commit()
     return conn

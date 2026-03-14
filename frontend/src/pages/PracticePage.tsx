@@ -4,7 +4,7 @@ import { Button, Input } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
 import { useApp } from '../contexts/AppContext'
-import type { Flashcard, Deck, Difficulty } from '../types'
+import type { Flashcard, Deck, Difficulty, StudyMode } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import FlashCard from '../components/FlashCard'
@@ -12,6 +12,8 @@ import DifficultyButtons from '../components/DifficultyButtons'
 import ExplainButton from '../components/ExplainButton'
 import MoveDeckModal from '../components/MoveDeckModal'
 import { useTranslation } from '../i18n'
+import TypeModeView from '../components/TypeModeView'
+import QuizModeView from '../components/QuizModeView'
 
 const SESSION_KEY = 'practice_session'
 const SESSION_MAX_AGE = 30 * 60 * 1000 // 30 minutes
@@ -31,6 +33,7 @@ interface SavedSession {
   totalDue: number
   showSide: 'source' | 'target'
   practiceMode: PracticeMode
+  studyMode?: StudyMode
   selectedDeckId?: number
   timestamp: number
 }
@@ -73,6 +76,8 @@ export default function PracticePage() {
   const [reviewed, setReviewed] = useState(0)
   const [sessionComplete, setSessionComplete] = useState(false)
   const [practiceMode, setPracticeMode] = useState<PracticeMode>('source-to-target')
+  const [studyMode, setStudyMode] = useState<StudyMode>('flip')
+  const [correctCount, setCorrectCount] = useState(0)
   const initialized = useRef(false)
 
   // Deck state
@@ -166,6 +171,7 @@ export default function PracticePage() {
       setTotalDue(saved.totalDue)
       setShowSide(saved.showSide)
       setPracticeMode(saved.practiceMode ?? 'source-to-target')
+      setStudyMode(saved.studyMode ?? 'flip')
       setSelectedDeckId(saved.selectedDeckId)
       setDueCount(saved.totalDue - saved.reviewed)
       setLoading(false)
@@ -186,6 +192,7 @@ export default function PracticePage() {
     setShowAnswer(false)
     setSessionComplete(false)
     setSelectedDeckId(undefined)
+    setCorrectCount(0)
     fetchCards()
   }, [languagePairVersion])
 
@@ -200,14 +207,15 @@ export default function PracticePage() {
     setTotalDue(0)
     setShowAnswer(false)
     setSessionComplete(false)
+    setCorrectCount(0)
     fetchCards(deckId)
   }
 
   // Persist session state on changes
   useEffect(() => {
     if (loading || sessionComplete || cards.length === 0) return
-    saveSession({ cards, currentIndex, reviewed, totalDue, showSide, practiceMode, selectedDeckId })
-  }, [cards, currentIndex, reviewed, totalDue, showSide, practiceMode, selectedDeckId, loading, sessionComplete])
+    saveSession({ cards, currentIndex, reviewed, totalDue, showSide, practiceMode, studyMode, selectedDeckId })
+  }, [cards, currentIndex, reviewed, totalDue, showSide, practiceMode, studyMode, selectedDeckId, loading, sessionComplete])
 
   // Clear storage when session completes
   useEffect(() => {
@@ -240,6 +248,36 @@ export default function PracticePage() {
       setReviewed((r) => r + 1)
 
       // Move to next card
+      if (currentIndex + 1 < cards.length) {
+        setCurrentIndex((i) => i + 1)
+        setShowAnswer(false)
+        setShowSide(getSideForMode(practiceMode))
+      } else {
+        setSessionComplete(true)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setReviewing(false)
+    }
+  }
+
+  const handleStudyModeResult = async (wasCorrect: boolean, responseTimeMs?: number) => {
+    if (!currentCard || reviewing) return
+    setReviewing(true)
+    WebApp.HapticFeedback.notificationOccurred(wasCorrect ? 'success' : 'error')
+
+    if (wasCorrect) setCorrectCount((c) => c + 1)
+
+    try {
+      const result = await api.submitReview(currentCard.id, wasCorrect ? 'medium' : 'hard', {
+        study_mode: studyMode,
+        was_correct: wasCorrect,
+        response_time_ms: responseTimeMs,
+      })
+      setDueCount(result.remaining_due)
+      setReviewed((r) => r + 1)
+
       if (currentIndex + 1 < cards.length) {
         setCurrentIndex((i) => i + 1)
         setShowAnswer(false)
@@ -309,25 +347,89 @@ export default function PracticePage() {
   )
 
   if (sessionComplete || cards.length === 0) {
+    const hasAccuracy = correctCount > 0 || (reviewed > 0 && studyMode !== 'flip')
+    const accuracyPct = reviewed > 0 ? Math.round((correctCount / reviewed) * 100) : 0
+
     return (
       <div className="page">
         <div style={{ padding: '16px 16px 0' }}>
           {deckChipBar}
         </div>
-        <EmptyState
-          icon={reviewed > 0 ? '🎉' : '✅'}
-          title={reviewed > 0 ? t('practice.sessionComplete') : t('practice.allCaughtUp')}
-          description={
-            reviewed > 0
-              ? t('practice.sessionCompleteSub', { count: reviewed, s: reviewed !== 1 ? 's' : '' })
-              : t('practice.noDueSub')
-          }
-          action={
-            reviewed === 0
-              ? { label: t('practice.addCards'), onClick: () => navigate('/add') }
-              : { label: t('practice.backToHome'), onClick: () => navigate('/') }
-          }
-        />
+        {reviewed > 0 ? (
+          <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎉</div>
+            <h2 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '8px' }}>
+              {t('practice.sessionComplete')}
+            </h2>
+            <p style={{ color: 'var(--tg-hint-color)', marginBottom: '24px' }}>
+              {t('practice.sessionCompleteSub', { count: reviewed, s: reviewed !== 1 ? 's' : '' })}
+            </p>
+
+            {hasAccuracy && (
+              <div style={{
+                backgroundColor: 'var(--tg-secondary-bg-color)',
+                borderRadius: '20px',
+                padding: '24px',
+                marginBottom: '24px',
+              }}>
+                <div style={{
+                  fontSize: '48px',
+                  fontWeight: 700,
+                  color: accuracyPct >= 80 ? '#34c759' : accuracyPct >= 50 ? '#ff9500' : '#ff3b30',
+                  marginBottom: '8px',
+                }}>
+                  {accuracyPct}%
+                </div>
+                <div style={{ fontSize: '15px', color: 'var(--tg-hint-color)' }}>
+                  {t('practice.accuracy', { correct: correctCount, total: reviewed, pct: accuracyPct })}
+                </div>
+                {/* Progress bar */}
+                <div style={{
+                  height: '8px',
+                  backgroundColor: 'var(--tg-bg-color)',
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                  marginTop: '16px',
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${accuracyPct}%`,
+                    backgroundColor: accuracyPct >= 80 ? '#34c759' : accuracyPct >= 50 ? '#ff9500' : '#ff3b30',
+                    borderRadius: '4px',
+                    transition: 'width 0.5s ease',
+                  }} />
+                </div>
+              </div>
+            )}
+
+            {!hasAccuracy && (
+              <div style={{
+                backgroundColor: 'var(--tg-secondary-bg-color)',
+                borderRadius: '20px',
+                padding: '24px',
+                marginBottom: '24px',
+              }}>
+                <div style={{ fontSize: '32px', fontWeight: 700, marginBottom: '4px' }}>
+                  {reviewed}
+                </div>
+                <div style={{ fontSize: '15px', color: 'var(--tg-hint-color)' }}>
+                  {t('practice.reviewedCount', { count: reviewed })}
+                </div>
+              </div>
+            )}
+
+            <Button size="l" stretched onClick={() => navigate('/')}>
+              {t('practice.backToHome')}
+            </Button>
+          </div>
+        ) : (
+          <EmptyState
+            icon="✅"
+            title={t('practice.allCaughtUp')}
+            description={t('practice.noDueSub')}
+            action={{ label: t('practice.addCards'), onClick: () => navigate('/add') }}
+          />
+        )}
       </div>
     )
   }
@@ -343,18 +445,53 @@ export default function PracticePage() {
             { mode: 'source-to-target' as PracticeMode, label: t('practice.sourceToTarget') },
             { mode: 'target-to-source' as PracticeMode, label: t('practice.targetToSource') },
             { mode: 'random' as PracticeMode, label: t('practice.random') },
+          ]).map(({ mode, label }, i) => {
+            const isTypeLocked = studyMode === 'type'
+            const isActive = isTypeLocked ? mode === 'target-to-source' : practiceMode === mode
+            const isDisabled = isTypeLocked && mode !== 'target-to-source'
+            return (
+              <button
+                key={mode}
+                onClick={() => !isDisabled && setPracticeMode(mode)}
+                disabled={isDisabled}
+                style={{
+                  flex: 1,
+                  padding: '6px 10px',
+                  fontSize: '12px',
+                  border: 'none',
+                  cursor: isDisabled ? 'not-allowed' : 'pointer',
+                  backgroundColor: isActive ? 'var(--tg-button-color)' : 'var(--tg-secondary-bg-color)',
+                  color: isActive ? '#fff' : 'var(--tg-hint-color)',
+                  opacity: isDisabled ? 0.5 : 1,
+                  borderRadius: i === 0 ? '8px 0 0 8px' : i === 2 ? '0 8px 8px 0' : '0',
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+        {/* Study mode selector */}
+        <div style={{ display: 'flex', marginBottom: '10px', borderRadius: '8px', overflow: 'hidden' }}>
+          {([
+            { mode: 'flip' as StudyMode, label: t('practice.modeFlip') },
+            { mode: 'type' as StudyMode, label: t('practice.modeType') },
+            { mode: 'quiz' as StudyMode, label: t('practice.modeQuiz') },
           ]).map(({ mode, label }, i) => (
             <button
               key={mode}
-              onClick={() => setPracticeMode(mode)}
+              onClick={() => {
+                setStudyMode(mode)
+                setShowAnswer(false)
+              }}
               style={{
                 flex: 1,
                 padding: '6px 10px',
                 fontSize: '12px',
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: practiceMode === mode ? 'var(--tg-button-color)' : 'var(--tg-secondary-bg-color)',
-                color: practiceMode === mode ? '#fff' : 'var(--tg-hint-color)',
+                backgroundColor: studyMode === mode ? 'var(--tg-button-color)' : 'var(--tg-secondary-bg-color)',
+                color: studyMode === mode ? '#fff' : 'var(--tg-hint-color)',
                 borderRadius: i === 0 ? '8px 0 0 8px' : i === 2 ? '0 8px 8px 0' : '0',
               }}
             >
@@ -392,68 +529,93 @@ export default function PracticePage() {
         </div>
       </div>
 
-      <div style={{ padding: '16px' }}>
-        <FlashCard
-          card={currentCard}
-          showSide={showSide}
-          revealed={showAnswer}
-        />
-      </div>
+      {studyMode === 'flip' && (
+        <>
+          <div style={{ padding: '16px' }}>
+            <FlashCard
+              card={currentCard}
+              showSide={showSide}
+              revealed={showAnswer}
+            />
+          </div>
 
-      <div style={{ padding: '0 16px' }}>
-        {!showAnswer ? (
-          <Button size="l" stretched onClick={handleReveal}>
-            {t('practice.showAnswer')}
-          </Button>
-        ) : (
-          <>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-              <ExplainButton key={currentCard.id} cardId={currentCard.id} />
-              <button
-                onClick={() => openEdit(currentCard)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  borderRadius: '10px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  border: '1.5px solid var(--tg-button-color)',
-                  background: 'transparent',
-                  color: 'var(--tg-button-color)',
-                  fontFamily: 'inherit',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {t('cards.edit')}
-              </button>
-              <button
-                onClick={() => setMovingCard(currentCard)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  borderRadius: '10px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  border: '1.5px solid var(--tg-button-color)',
-                  background: 'transparent',
-                  color: 'var(--tg-button-color)',
-                  fontFamily: 'inherit',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {t('cards.move')}
-              </button>
-            </div>
-            <DifficultyButtons onRate={handleRate} disabled={reviewing} />
-          </>
-        )}
-      </div>
+          <div style={{ padding: '0 16px' }}>
+            {!showAnswer ? (
+              <Button size="l" stretched onClick={handleReveal}>
+                {t('practice.showAnswer')}
+              </Button>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <ExplainButton key={currentCard.id} cardId={currentCard.id} />
+                  <button
+                    onClick={() => openEdit(currentCard)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: '1.5px solid var(--tg-button-color)',
+                      background: 'transparent',
+                      color: 'var(--tg-button-color)',
+                      fontFamily: 'inherit',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t('cards.edit')}
+                  </button>
+                  <button
+                    onClick={() => setMovingCard(currentCard)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: '1.5px solid var(--tg-button-color)',
+                      background: 'transparent',
+                      color: 'var(--tg-button-color)',
+                      fontFamily: 'inherit',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t('cards.move')}
+                  </button>
+                </div>
+                <DifficultyButtons onRate={handleRate} disabled={reviewing} />
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      {studyMode === 'type' && (
+        <div style={{ padding: '16px' }}>
+          <TypeModeView
+            card={currentCard}
+            showSide="target"
+            onResult={handleStudyModeResult}
+          />
+        </div>
+      )}
+
+      {studyMode === 'quiz' && (
+        <div style={{ padding: '16px' }}>
+          <QuizModeView
+            card={currentCard}
+            showSide={showSide}
+            onResult={handleStudyModeResult}
+            nextCardId={currentIndex + 1 < cards.length ? cards[currentIndex + 1].id : undefined}
+          />
+        </div>
+      )}
 
       {/* Edit Card Modal */}
       {editingCard && (

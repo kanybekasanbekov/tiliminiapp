@@ -8,6 +8,9 @@ import type {
   UserStats,
   UserPreferences,
   Difficulty,
+  StudyMode,
+  QuizOptionsResponse,
+  AccuracyStats,
   Deck,
   AdminGlobalStats,
   AdminUserStats,
@@ -163,17 +166,30 @@ export const api = {
     return request<DueCardsResponse>(url)
   },
 
-  submitReview: (cardId: number, difficulty: Difficulty) =>
+  submitReview: (
+    cardId: number,
+    difficulty: Difficulty,
+    opts?: { study_mode?: StudyMode; was_correct?: boolean; response_time_ms?: number }
+  ) =>
     request<ReviewResponse>('/api/practice/review', {
       method: 'POST',
-      body: JSON.stringify({ card_id: cardId, difficulty }),
+      body: JSON.stringify({ card_id: cardId, difficulty, ...opts }),
     }),
+
+  getQuizOptions: (cardId: number, count: number = 3, side: 'source' | 'target' = 'target') =>
+    request<QuizOptionsResponse>(`/api/practice/quiz-options?card_id=${cardId}&count=${count}&side=${side}`),
 
   // Stats API
   getStats: (languagePair?: string) => {
     let url = '/api/stats'
     if (languagePair) url += `?language_pair=${languagePair}`
     return request<UserStats>(url)
+  },
+
+  getAccuracyStats: (languagePair?: string) => {
+    let url = '/api/stats/accuracy'
+    if (languagePair) url += `?language_pair=${languagePair}`
+    return request<AccuracyStats>(url)
   },
 
   // User Preferences API

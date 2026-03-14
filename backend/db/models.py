@@ -302,7 +302,7 @@ async def get_due_flashcards(
         f"""
         SELECT * FROM flashcards
         {where}
-        ORDER BY next_review ASC
+        ORDER BY RANDOM()
         LIMIT ?
         """,
         params + [limit],
@@ -606,6 +606,49 @@ async def check_duplicate(
     return await cursor.fetchone() is not None
 
 
+async def get_random_distractors(
+    conn: aiosqlite.Connection,
+    user_id: int,
+    card_id: int,
+    language_pair: str,
+    side: str,
+    count: int = 3,
+) -> list[str]:
+    """Get random distractor texts for multiple choice quiz.
+
+    Returns up to `count` random texts from other cards in the same language pair,
+    excluding cards that have the same text as the correct answer.
+    """
+    # Get the correct answer text to exclude duplicates
+    if side == "target":
+        column = "target_text"
+    else:
+        column = "source_text"
+
+    # Get the correct card's answer text
+    cursor = await conn.execute(
+        f"SELECT {column} FROM flashcards WHERE id = ? AND user_id = ?",
+        (card_id, user_id),
+    )
+    row = await cursor.fetchone()
+    if not row:
+        return []
+    correct_text = row[column]
+
+    # Get random distractors excluding the current card AND any cards with matching text
+    cursor = await conn.execute(
+        f"""
+        SELECT {column} FROM flashcards
+        WHERE user_id = ? AND language_pair = ? AND id != ? AND {column} != ?
+        ORDER BY RANDOM()
+        LIMIT ?
+        """,
+        (user_id, language_pair, card_id, correct_text, count),
+    )
+    rows = await cursor.fetchall()
+    return [row[column] for row in rows]
+
+
 async def check_duplicates_batch(
     conn: aiosqlite.Connection,
     user_id: int,
@@ -731,4 +774,139 @@ async def get_admin_user_stats(conn: aiosqlite.Connection) -> list[dict]:
         d = dict(r)
         d["total_cost_usd"] = round(d["total_cost_usd"], 6)
         result.append(d)
+    return result
+
+
+async def log_review(
+    conn: aiosqlite.Connection,
+    user_id: int,
+    card_id: int,
+    study_mode: str = "flip",
+    was_correct: bool | None = None,
+    quality: int = 3,
+    response_time_ms: int | None = None,
+) -> None:
+    """Log a review attempt to review_history."""
+    await conn.execute(
+        """
+        INSERT INTO review_history (user_id, card_id, study_mode, was_correct, quality, response_time_ms)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (user_id, card_id, study_mode,
+         int(was_correct) if was_correct is not None else None,
+         quality, response_time_ms),
+    )
+    await conn.commit()
+
+
+async def get_session_stats(
+    conn: aiosqlite.Connection,
+    user_id: int,
+    since_timestamp: str | None = None,
+) -> dict:
+    """Get review stats for a session (or all time if no timestamp)."""
+    where = "WHERE user_id = ?"
+    params: list = [user_id]
+    if since_timestamp:
+        where += " AND created_at >= ?"
+        params.append(since_timestamp)
+
+    cursor = await conn.execute(
+        f"""
+        SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN was_correct = 1 THEN 1 ELSE 0 END) as correct,
+            SUM(CASE WHEN was_correct = 0 THEN 1 ELSE 0 END) as incorrect
+        FROM review_history
+        {where} AND was_correct IS NOT NULL
+        """,
+        params,
+    )
+    row = await cursor.fetchone()
+    total = row["total"] if row else 0
+    correct = row["correct"] if row else 0
+    incorrect = row["incorrect"] if row else 0
+    return {
+        "total": total,
+        "correct": correct,
+        "incorrect": incorrect,
+        "accuracy_pct": round(correct / total * 100, 1) if total > 0 else 0,
+    }
+
+
+async def get_accuracy_stats(
+    conn: aiosqlite.Connection,
+    user_id: int,
+    language_pair: str | None = None,
+) -> dict:
+    """Get accuracy stats per study mode with rolling averages."""
+    base_where = "WHERE rh.user_id = ?"
+    params: list = [user_id]
+    if language_pair:
+        base_where += " AND f.language_pair = ?"
+        params.append(language_pair)
+
+    # Per-mode stats (all time)
+    cursor = await conn.execute(
+        f"""
+        SELECT
+            rh.study_mode,
+            COUNT(*) as total,
+            SUM(CASE WHEN rh.was_correct = 1 THEN 1 ELSE 0 END) as correct
+        FROM review_history rh
+        LEFT JOIN flashcards f ON f.id = rh.card_id
+        {base_where}
+        GROUP BY rh.study_mode
+        """,
+        params,
+    )
+    rows = await cursor.fetchall()
+
+    result: dict = {
+        "total_reviews": 0,
+        "flip_mode": {"total": 0},
+        "type_mode": {"total": 0, "correct": 0, "accuracy": 0},
+        "quiz_mode": {"total": 0, "correct": 0, "accuracy": 0},
+    }
+
+    for row in rows:
+        mode = row["study_mode"]
+        total = row["total"]
+        correct = row["correct"] or 0
+        result["total_reviews"] += total
+        if mode == "flip":
+            result["flip_mode"] = {"total": total}
+        elif mode == "type":
+            result["type_mode"] = {
+                "total": total,
+                "correct": correct,
+                "accuracy": round(correct / total, 2) if total > 0 else 0,
+            }
+        elif mode == "quiz":
+            result["quiz_mode"] = {
+                "total": total,
+                "correct": correct,
+                "accuracy": round(correct / total, 2) if total > 0 else 0,
+            }
+
+    # Rolling averages (7 days and 30 days)
+    for days, key in [(7, "last_7_days_accuracy"), (30, "last_30_days_accuracy")]:
+        roll_params = list(params)
+        cursor = await conn.execute(
+            f"""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN rh.was_correct = 1 THEN 1 ELSE 0 END) as correct
+            FROM review_history rh
+            LEFT JOIN flashcards f ON f.id = rh.card_id
+            {base_where} AND rh.was_correct IS NOT NULL
+                AND rh.created_at >= datetime('now', '-{days} days')
+            """,
+            roll_params,
+        )
+        row = await cursor.fetchone()
+        total = row["total"] if row else 0
+        correct = row["correct"] if row else 0
+        result[key] = round(correct / total, 2) if total > 0 else 0
+
     return result

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Section, Cell } from '@telegram-apps/telegram-ui'
 import { useApp } from '../contexts/AppContext'
 import { api } from '../api'
-import type { UserStats } from '../types'
+import type { UserStats, AccuracyStats } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { useTranslation } from '../i18n'
 
@@ -10,12 +10,19 @@ export default function StatsPage() {
   const { activeLanguagePair, languagePairVersion } = useApp()
   const { t } = useTranslation()
   const [stats, setStats] = useState<UserStats | null>(null)
+  const [accuracy, setAccuracy] = useState<AccuracyStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
-    api.getStats(activeLanguagePair)
-      .then(setStats)
+    Promise.all([
+      api.getStats(activeLanguagePair),
+      api.getAccuracyStats(activeLanguagePair),
+    ])
+      .then(([statsData, accuracyData]) => {
+        setStats(statsData)
+        setAccuracy(accuracyData)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [activeLanguagePair, languagePairVersion])
@@ -136,6 +143,110 @@ export default function StatsPage() {
           ))}
         </div>
       </Section>
+
+      {accuracy && (accuracy.type_mode.total > 0 || accuracy.quiz_mode.total > 0) && (
+        <Section header={t('stats.accuracyTitle')}>
+          <div style={{ padding: '16px' }}>
+            {accuracy.type_mode.total > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: '6px',
+                  fontSize: '14px',
+                }}>
+                  <span>{t('practice.modeType')}</span>
+                  <span style={{ fontWeight: 600 }}>
+                    {Math.round(accuracy.type_mode.accuracy * 100)}% ({accuracy.type_mode.correct}/{accuracy.type_mode.total})
+                  </span>
+                </div>
+                <div style={{
+                  height: '8px',
+                  backgroundColor: 'var(--tg-secondary-bg-color)',
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${accuracy.type_mode.accuracy * 100}%`,
+                    backgroundColor: '#34c759',
+                    borderRadius: '4px',
+                    transition: 'width 0.5s ease',
+                    minWidth: accuracy.type_mode.total > 0 ? '4px' : '0',
+                  }} />
+                </div>
+              </div>
+            )}
+
+            {accuracy.quiz_mode.total > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: '6px',
+                  fontSize: '14px',
+                }}>
+                  <span>{t('practice.modeQuiz')}</span>
+                  <span style={{ fontWeight: 600 }}>
+                    {Math.round(accuracy.quiz_mode.accuracy * 100)}% ({accuracy.quiz_mode.correct}/{accuracy.quiz_mode.total})
+                  </span>
+                </div>
+                <div style={{
+                  height: '8px',
+                  backgroundColor: 'var(--tg-secondary-bg-color)',
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${accuracy.quiz_mode.accuracy * 100}%`,
+                    backgroundColor: '#007aff',
+                    borderRadius: '4px',
+                    transition: 'width 0.5s ease',
+                    minWidth: accuracy.quiz_mode.total > 0 ? '4px' : '0',
+                  }} />
+                </div>
+              </div>
+            )}
+
+            {/* Rolling averages */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginTop: '8px',
+            }}>
+              <div style={{
+                flex: 1,
+                padding: '12px',
+                backgroundColor: 'var(--tg-secondary-bg-color)',
+                borderRadius: '12px',
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '20px', fontWeight: 700 }}>
+                  {Math.round(accuracy.last_7_days_accuracy * 100)}%
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--tg-hint-color)', marginTop: '2px' }}>
+                  {t('stats.last7Days')}
+                </div>
+              </div>
+              <div style={{
+                flex: 1,
+                padding: '12px',
+                backgroundColor: 'var(--tg-secondary-bg-color)',
+                borderRadius: '12px',
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '20px', fontWeight: 700 }}>
+                  {Math.round(accuracy.last_30_days_accuracy * 100)}%
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--tg-hint-color)', marginTop: '2px' }}>
+                  {t('stats.last30Days')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Section>
+      )}
 
       <Section header={t('stats.srsOverview')}>
         <Cell subtitle={t('stats.srs')}>{t('stats.srsAlgorithm')}</Cell>

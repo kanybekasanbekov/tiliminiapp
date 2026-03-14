@@ -15,6 +15,17 @@ def difficulty_to_quality(difficulty: str) -> int:
     return DIFFICULTY_TO_QUALITY[difficulty.lower()]
 
 
+def mode_result_to_quality(study_mode: str, difficulty: str, was_correct: bool | None) -> int:
+    """Derive SM-2 quality from study mode and result.
+
+    - flip mode: uses difficulty string (hard=1, medium=3, easy=5)
+    - type/quiz modes: uses was_correct (True=4, False=1)
+    """
+    if study_mode == "flip":
+        return difficulty_to_quality(difficulty)
+    return 4 if was_correct else 1
+
+
 @dataclass
 class SRSResult:
     """Result of an SM-2 calculation."""
