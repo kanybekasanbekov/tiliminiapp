@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -9,6 +10,8 @@ from pydantic import BaseModel
 from backend.auth import ensure_user
 from backend.config import SUPPORTED_LANGUAGE_PAIRS
 from backend.db import models
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -60,16 +63,20 @@ async def translate_word(
         source_lang, target_lang = body.language_pair.split("-", 1)
         result, usage = await llm.translate(body.word, source_lang, target_lang)
         db = request.app.state.db
-        await models.log_api_usage(
-            db, user["id"], "translate", usage["model"],
-            usage["input_tokens"], usage["output_tokens"],
-            usage["estimated_cost_usd"], body.language_pair,
-        )
+        try:
+            await models.log_api_usage(
+                db, user["id"], "translate", usage["model"],
+                usage["input_tokens"], usage["output_tokens"],
+                usage["estimated_cost_usd"], body.language_pair,
+            )
+        except Exception:
+            logger.exception("Failed to log API usage for translate")
         return result.model_dump()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}")
+    except Exception:
+        logger.exception("Translation failed")
+        raise HTTPException(status_code=500, detail="Translation failed")
 
 
 @router.post("/translate-image")
@@ -100,11 +107,14 @@ async def translate_image(
         source_lang, target_lang = language_pair.split("-", 1)
         results, usage = await llm.translate_image(image_base64, content_type, source_lang, target_lang)
         db = request.app.state.db
-        await models.log_api_usage(
-            db, user["id"], "translate_image", usage["model"],
-            usage["input_tokens"], usage["output_tokens"],
-            usage["estimated_cost_usd"], language_pair,
-        )
+        try:
+            await models.log_api_usage(
+                db, user["id"], "translate_image", usage["model"],
+                usage["input_tokens"], usage["output_tokens"],
+                usage["estimated_cost_usd"], language_pair,
+            )
+        except Exception:
+            logger.exception("Failed to log API usage for translate_image")
         # Check for duplicates
         source_texts = [r.source_text for r in results]
         duplicates = await models.check_duplicates_batch(db, user["id"], source_texts, language_pair)
@@ -116,8 +126,9 @@ async def translate_image(
         return {"translations": translations, "count": len(translations)}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Image translation failed: {str(e)}")
+    except Exception:
+        logger.exception("Image translation failed")
+        raise HTTPException(status_code=500, detail="Image translation failed")
 
 
 @router.post("/batch")
@@ -201,6 +212,8 @@ async def list_cards(
     user: dict[str, Any] = Depends(ensure_user),
 ):
     """List user's flashcards with pagination, optionally filtered by deck and/or language pair."""
+    if per_page < 1:
+        raise HTTPException(status_code=400, detail="per_page must be >= 1")
     if language_pair is not None and language_pair not in SUPPORTED_LANGUAGE_PAIRS:
         raise HTTPException(status_code=400, detail=f"Unsupported language pair: {language_pair}")
     db = request.app.state.db
@@ -229,6 +242,8 @@ async def search_cards(
     user: dict[str, Any] = Depends(ensure_user),
 ):
     """Search cards by source or target text within a language pair."""
+    if per_page < 1:
+        raise HTTPException(status_code=400, detail="per_page must be >= 1")
     if not q.strip():
         raise HTTPException(status_code=400, detail="Search query cannot be empty")
     if language_pair not in SUPPORTED_LANGUAGE_PAIRS:
@@ -263,13 +278,17 @@ async def explain_word(
             body.source_text, body.target_text, source_lang, target_lang
         )
         db = request.app.state.db
-        await models.log_api_usage(
-            db, user["id"], "explain", usage["model"],
-            usage["input_tokens"], usage["output_tokens"],
-            usage["estimated_cost_usd"], body.language_pair,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Explanation failed: {str(e)}")
+        try:
+            await models.log_api_usage(
+                db, user["id"], "explain", usage["model"],
+                usage["input_tokens"], usage["output_tokens"],
+                usage["estimated_cost_usd"], body.language_pair,
+            )
+        except Exception:
+            logger.exception("Failed to log API usage for explain")
+    except Exception:
+        logger.exception("Explanation failed")
+        raise HTTPException(status_code=500, detail="Explanation failed")
     return {"explanation": explanation_text}
 
 
@@ -345,13 +364,17 @@ async def generate_explanation(
         explanation_text, usage = await llm.explain_word(
             card["source_text"], card["target_text"], source_lang, target_lang
         )
-        await models.log_api_usage(
-            db, user_id, "explain", usage["model"],
-            usage["input_tokens"], usage["output_tokens"],
-            usage["estimated_cost_usd"], card["language_pair"],
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Explanation failed: {str(e)}")
+        try:
+            await models.log_api_usage(
+                db, user_id, "explain", usage["model"],
+                usage["input_tokens"], usage["output_tokens"],
+                usage["estimated_cost_usd"], card["language_pair"],
+            )
+        except Exception:
+            logger.exception("Failed to log API usage for explain")
+    except Exception:
+        logger.exception("Explanation generation failed")
+        raise HTTPException(status_code=500, detail="Explanation failed")
 
     # Cache in DB
     await models.save_explanation(db, card_id, user_id, explanation_text)

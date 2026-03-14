@@ -64,10 +64,6 @@ export default function ExplainButton({ cardId, translationData }: ExplainButton
     }
     if (state === 'loading') return
 
-    if (state === 'error') {
-      // Retry on error
-    }
-
     setState('loading')
     setError('')
     try {

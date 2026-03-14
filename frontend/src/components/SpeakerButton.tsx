@@ -3,7 +3,17 @@ import WebApp from '@twa-dev/sdk'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
+const TTS_CACHE_MAX = 200
 const ttsCache = new Map<string, Blob>()
+
+function ttsCacheSet(key: string, blob: Blob) {
+  if (ttsCache.size >= TTS_CACHE_MAX) {
+    // Evict oldest entry (first key in insertion order)
+    const oldest = ttsCache.keys().next().value
+    if (oldest !== undefined) ttsCache.delete(oldest)
+  }
+  ttsCache.set(key, blob)
+}
 
 interface SpeakerButtonProps {
   text: string
@@ -87,7 +97,7 @@ export default function SpeakerButton({ text, lang, size = 'medium' }: SpeakerBu
         return res.blob()
       })
       .then(blob => {
-        ttsCache.set(cacheKey, blob)
+        ttsCacheSet(cacheKey, blob)
         return playBlob(blob)
       })
       .then(() => {

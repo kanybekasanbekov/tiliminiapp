@@ -19,18 +19,18 @@ function normalizeForComparison(s: string): string {
     .replace(/[.,!?;:'"()\[\]{}]/g, '')
 }
 
-function checkAnswer(userInput: string, correctAnswer: string): { correct: boolean; almostCorrect: boolean } {
+function checkAnswer(userInput: string, correctAnswer: string): boolean {
   const a = normalizeForComparison(userInput)
   const b = normalizeForComparison(correctAnswer)
-  if (a === b) return { correct: true, almostCorrect: false }
-  if (a.replace(/\s/g, '') === b.replace(/\s/g, '')) return { correct: true, almostCorrect: true }
-  return { correct: false, almostCorrect: false }
+  if (a === b) return true
+  if (a.replace(/\s/g, '') === b.replace(/\s/g, '')) return true
+  return false
 }
 
 export default function TypeModeView({ card, showSide, onResult }: TypeModeViewProps) {
   const { t } = useTranslation()
   const [input, setInput] = useState('')
-  const [lastResult, setLastResult] = useState<'incorrect' | 'almost' | null>(null)
+  const [lastResult, setLastResult] = useState<'incorrect' | null>(null)
   const [answered, setAnswered] = useState(false) // true when correct or gave up
   const [showCorrect, setShowCorrect] = useState(false) // brief green flash on correct
   const [gaveUp, setGaveUp] = useState(false)
@@ -60,9 +60,7 @@ export default function TypeModeView({ card, showSide, onResult }: TypeModeViewP
 
   const handleCheck = () => {
     if (!input.trim() || answered) return
-    const checkResult = checkAnswer(input, correctAnswer)
-
-    if (checkResult.correct) {
+    if (checkAnswer(input, correctAnswer)) {
       WebApp.HapticFeedback.notificationOccurred('success')
       setAnswered(true)
       setShowCorrect(true)

@@ -223,6 +223,20 @@ Use markdown formatting (bold, bullet points). Keep it concise — no more than 
 Return ONLY the explanation text, no preamble or quotes."""
 
 
+async def _call_with_retry(fn, retryable_exceptions: tuple, label: str):
+    """Call fn() with exponential backoff retry on transient errors."""
+    for attempt in range(MAX_RETRIES):
+        try:
+            return await fn()
+        except retryable_exceptions as e:
+            if attempt == MAX_RETRIES - 1:
+                raise
+            delay = RETRY_DELAY_BASE * (2 ** attempt)
+            logger.warning("%s attempt %d failed: %s. Retrying in %.1fs", label, attempt + 1, e, delay)
+            await asyncio.sleep(delay)
+    raise RuntimeError("Unreachable")
+
+
 class LLMProvider(ABC):
     """Abstract base for LLM providers."""
 
@@ -245,303 +259,161 @@ class LLMProvider(ABC):
 class AnthropicProvider(LLMProvider):
     """Uses Anthropic Claude API for translation."""
 
+    _RETRYABLE = (anthropic.APIError, anthropic.APIConnectionError, anthropic.RateLimitError)
+
     def __init__(self) -> None:
         self.client = anthropic.AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
         self.model = config.LLM_MODEL
 
+    def _extract_text(self, response) -> str:
+        for block in response.content:
+            if hasattr(block, "text"):
+                return block.text
+        return ""
+
+    def _usage(self, response) -> dict:
+        usage = {
+            "model": self.model,
+            "input_tokens": getattr(response.usage, 'input_tokens', 0),
+            "output_tokens": getattr(response.usage, 'output_tokens', 0),
+        }
+        usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
+        return usage
+
     async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict]:
         system_prompt = build_translation_prompt(source_lang, target_lang)
-        for attempt in range(MAX_RETRIES):
-            try:
-                response = await self.client.messages.create(
-                    model=self.model,
-                    max_tokens=512,
-                    system=system_prompt,
-                    messages=[{"role": "user", "content": word}],
-                )
-                text = ""
-                for block in response.content:
-                    if hasattr(block, "text"):
-                        text = block.text
-                        break
-                logger.debug("Anthropic raw response: %s", text)
-                data = _extract_json(text)
-                usage = {
-                    "model": self.model,
-                    "input_tokens": getattr(response.usage, 'input_tokens', 0),
-                    "output_tokens": getattr(response.usage, 'output_tokens', 0),
-                }
-                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
-                return TranslationResult.model_validate(data), usage
-            except (
-                anthropic.APIError,
-                anthropic.APIConnectionError,
-                anthropic.RateLimitError,
-            ) as e:
-                if attempt == MAX_RETRIES - 1:
-                    raise
-                delay = RETRY_DELAY_BASE * (2**attempt)
-                logger.warning(
-                    "Anthropic API attempt %d failed: %s. Retrying in %.1fs",
-                    attempt + 1,
-                    e,
-                    delay,
-                )
-                await asyncio.sleep(delay)
-        raise RuntimeError("Unreachable")
 
+        async def call():
+            response = await self.client.messages.create(
+                model=self.model, max_tokens=512, system=system_prompt,
+                messages=[{"role": "user", "content": word}],
+            )
+            text = self._extract_text(response)
+            logger.debug("Anthropic raw response: %s", text)
+            return TranslationResult.model_validate(_extract_json(text)), self._usage(response)
+
+        return await _call_with_retry(call, self._RETRYABLE, "Anthropic translate")
 
     async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict]:
         prompt = build_explanation_prompt(word, translation, source_lang, target_lang)
-        for attempt in range(MAX_RETRIES):
-            try:
-                response = await self.client.messages.create(
-                    model=self.model,
-                    max_tokens=1024,
-                    messages=[{"role": "user", "content": prompt}],
-                )
-                text = ""
-                for block in response.content:
-                    if hasattr(block, "text"):
-                        text = block.text
-                        break
-                logger.debug("Anthropic explain response: %s", text)
-                usage = {
-                    "model": self.model,
-                    "input_tokens": getattr(response.usage, 'input_tokens', 0),
-                    "output_tokens": getattr(response.usage, 'output_tokens', 0),
-                }
-                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
-                return text.strip().strip("`").strip(), usage
-            except (
-                anthropic.APIError,
-                anthropic.APIConnectionError,
-                anthropic.RateLimitError,
-            ) as e:
-                if attempt == MAX_RETRIES - 1:
-                    raise
-                delay = RETRY_DELAY_BASE * (2**attempt)
-                logger.warning(
-                    "Anthropic explain attempt %d failed: %s. Retrying in %.1fs",
-                    attempt + 1,
-                    e,
-                    delay,
-                )
-                await asyncio.sleep(delay)
-        raise RuntimeError("Unreachable")
+
+        async def call():
+            response = await self.client.messages.create(
+                model=self.model, max_tokens=1024,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = self._extract_text(response)
+            logger.debug("Anthropic explain response: %s", text)
+            return text.strip().strip("`").strip(), self._usage(response)
+
+        return await _call_with_retry(call, self._RETRYABLE, "Anthropic explain")
 
     async def translate_image(self, image_base64: str, media_type: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[list[TranslationResult], dict]:
         system_prompt = build_image_translation_prompt(source_lang, target_lang)
-        for attempt in range(MAX_RETRIES):
-            try:
-                response = await self.client.messages.create(
-                    model=self.model,
-                    max_tokens=8192,
-                    system=system_prompt,
-                    messages=[{
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": media_type,
-                                    "data": image_base64,
-                                },
-                            },
-                            {
-                                "type": "text",
-                                "text": "Extract and translate all words/phrases from this image.",
-                            },
-                        ],
-                    }],
-                )
-                text = ""
-                for block in response.content:
-                    if hasattr(block, "text"):
-                        text = block.text
-                        break
-                logger.debug("Anthropic image translate response: %s", text[:500])
-                items = _extract_json_array(text)
-                results = [TranslationResult.model_validate(item) for item in items]
-                usage = {
-                    "model": self.model,
-                    "input_tokens": getattr(response.usage, 'input_tokens', 0),
-                    "output_tokens": getattr(response.usage, 'output_tokens', 0),
-                }
-                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
-                return results, usage
-            except (
-                anthropic.APIError,
-                anthropic.APIConnectionError,
-                anthropic.RateLimitError,
-            ) as e:
-                if attempt == MAX_RETRIES - 1:
-                    raise
-                delay = RETRY_DELAY_BASE * (2**attempt)
-                logger.warning(
-                    "Anthropic image translate attempt %d failed: %s. Retrying in %.1fs",
-                    attempt + 1,
-                    e,
-                    delay,
-                )
-                await asyncio.sleep(delay)
-        raise RuntimeError("Unreachable")
+
+        async def call():
+            response = await self.client.messages.create(
+                model=self.model, max_tokens=8192, system=system_prompt,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_base64}},
+                        {"type": "text", "text": "Extract and translate all words/phrases from this image."},
+                    ],
+                }],
+            )
+            text = self._extract_text(response)
+            logger.debug("Anthropic image translate response: %s", text[:500])
+            results = [TranslationResult.model_validate(item) for item in _extract_json_array(text)]
+            return results, self._usage(response)
+
+        return await _call_with_retry(call, self._RETRYABLE, "Anthropic image translate")
 
 
 class OpenAIProvider(LLMProvider):
     """Uses OpenAI API for translation."""
 
+    _RETRYABLE = (openai.APIError, openai.APIConnectionError, openai.RateLimitError)
+
     def __init__(self) -> None:
         self.client = openai.AsyncOpenAI(api_key=config.OPENAI_API_KEY)
         self.model = config.LLM_MODEL or "gpt-4.1-mini"
 
+    def _usage(self, response) -> dict:
+        usage_obj = response.usage
+        usage = {
+            "model": self.model,
+            "input_tokens": getattr(usage_obj, 'prompt_tokens', 0) if usage_obj else 0,
+            "output_tokens": getattr(usage_obj, 'completion_tokens', 0) if usage_obj else 0,
+        }
+        usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
+        return usage
+
     async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict]:
         system_prompt = build_translation_prompt(source_lang, target_lang)
-        for attempt in range(MAX_RETRIES):
-            try:
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    max_tokens=512,
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": word},
-                    ],
-                )
-                text = response.choices[0].message.content or "{}"
-                logger.debug("OpenAI raw response: %s", text)
-                data = _extract_json(text)
-                usage_obj = response.usage
-                usage = {
-                    "model": self.model,
-                    "input_tokens": getattr(usage_obj, 'prompt_tokens', 0) if usage_obj else 0,
-                    "output_tokens": getattr(usage_obj, 'completion_tokens', 0) if usage_obj else 0,
-                }
-                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
-                return TranslationResult.model_validate(data), usage
-            except (
-                openai.APIError,
-                openai.APIConnectionError,
-                openai.RateLimitError,
-            ) as e:
-                if attempt == MAX_RETRIES - 1:
-                    raise
-                delay = RETRY_DELAY_BASE * (2**attempt)
-                logger.warning(
-                    "OpenAI API attempt %d failed: %s. Retrying in %.1fs",
-                    attempt + 1,
-                    e,
-                    delay,
-                )
-                await asyncio.sleep(delay)
-        raise RuntimeError("Unreachable")
 
+        async def call():
+            response = await self.client.chat.completions.create(
+                model=self.model, max_tokens=512,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": word},
+                ],
+            )
+            text = response.choices[0].message.content or "{}"
+            logger.debug("OpenAI raw response: %s", text)
+            return TranslationResult.model_validate(_extract_json(text)), self._usage(response)
+
+        return await _call_with_retry(call, self._RETRYABLE, "OpenAI translate")
 
     async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict]:
         prompt = build_explanation_prompt(word, translation, source_lang, target_lang)
-        for attempt in range(MAX_RETRIES):
-            try:
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    max_tokens=1024,
-                    messages=[
-                        {"role": "user", "content": prompt},
-                    ],
-                )
-                text = response.choices[0].message.content or ""
-                logger.debug("OpenAI explain response: %s", text)
-                usage_obj = response.usage
-                usage = {
-                    "model": self.model,
-                    "input_tokens": getattr(usage_obj, 'prompt_tokens', 0) if usage_obj else 0,
-                    "output_tokens": getattr(usage_obj, 'completion_tokens', 0) if usage_obj else 0,
-                }
-                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
-                return text.strip().strip("`").strip(), usage
-            except (
-                openai.APIError,
-                openai.APIConnectionError,
-                openai.RateLimitError,
-            ) as e:
-                if attempt == MAX_RETRIES - 1:
-                    raise
-                delay = RETRY_DELAY_BASE * (2**attempt)
-                logger.warning(
-                    "OpenAI explain attempt %d failed: %s. Retrying in %.1fs",
-                    attempt + 1,
-                    e,
-                    delay,
-                )
-                await asyncio.sleep(delay)
-        raise RuntimeError("Unreachable")
+
+        async def call():
+            response = await self.client.chat.completions.create(
+                model=self.model, max_tokens=1024,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = response.choices[0].message.content or ""
+            logger.debug("OpenAI explain response: %s", text)
+            return text.strip().strip("`").strip(), self._usage(response)
+
+        return await _call_with_retry(call, self._RETRYABLE, "OpenAI explain")
 
     async def translate_image(self, image_base64: str, media_type: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[list[TranslationResult], dict]:
         system_prompt = build_image_translation_prompt(source_lang, target_lang)
-        for attempt in range(MAX_RETRIES):
+
+        async def call():
+            response = await self.client.chat.completions.create(
+                model=self.model, max_tokens=8192,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt + '\n\nIMPORTANT: Wrap the array in a JSON object like: {"words": [...]}'},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{image_base64}"}},
+                            {"type": "text", "text": "Extract and translate all words/phrases from this image."},
+                        ],
+                    },
+                ],
+            )
+            text = response.choices[0].message.content or "[]"
+            logger.debug("OpenAI image translate response: %s", text[:500])
             try:
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    max_tokens=8192,
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": system_prompt + '\n\nIMPORTANT: Wrap the array in a JSON object like: {"words": [...]}'},
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:{media_type};base64,{image_base64}",
-                                    },
-                                },
-                                {
-                                    "type": "text",
-                                    "text": "Extract and translate all words/phrases from this image.",
-                                },
-                            ],
-                        },
-                    ],
-                )
-                text = response.choices[0].message.content or "[]"
-                logger.debug("OpenAI image translate response: %s", text[:500])
-                # OpenAI json_object mode requires a JSON object, so we wrap in {"words": [...]}
-                try:
-                    parsed = json.loads(text)
-                    if isinstance(parsed, dict) and "words" in parsed:
-                        items = parsed["words"]
-                    elif isinstance(parsed, list):
-                        items = parsed
-                    else:
-                        # Try to find any list value in the dict
-                        items = next((v for v in parsed.values() if isinstance(v, list)), [])
-                except json.JSONDecodeError:
-                    items = _extract_json_array(text)
-                results = [TranslationResult.model_validate(item) for item in items]
-                usage_obj = response.usage
-                usage = {
-                    "model": self.model,
-                    "input_tokens": getattr(usage_obj, 'prompt_tokens', 0) if usage_obj else 0,
-                    "output_tokens": getattr(usage_obj, 'completion_tokens', 0) if usage_obj else 0,
-                }
-                usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
-                return results, usage
-            except (
-                openai.APIError,
-                openai.APIConnectionError,
-                openai.RateLimitError,
-            ) as e:
-                if attempt == MAX_RETRIES - 1:
-                    raise
-                delay = RETRY_DELAY_BASE * (2**attempt)
-                logger.warning(
-                    "OpenAI image translate attempt %d failed: %s. Retrying in %.1fs",
-                    attempt + 1,
-                    e,
-                    delay,
-                )
-                await asyncio.sleep(delay)
-        raise RuntimeError("Unreachable")
+                parsed = json.loads(text)
+                if isinstance(parsed, dict) and "words" in parsed:
+                    items = parsed["words"]
+                elif isinstance(parsed, list):
+                    items = parsed
+                else:
+                    items = next((v for v in parsed.values() if isinstance(v, list)), [])
+            except json.JSONDecodeError:
+                items = _extract_json_array(text)
+            return [TranslationResult.model_validate(item) for item in items], self._usage(response)
+
+        return await _call_with_retry(call, self._RETRYABLE, "OpenAI image translate")
 
 
 def create_llm_provider() -> LLMProvider:

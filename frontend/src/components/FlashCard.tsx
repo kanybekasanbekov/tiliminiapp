@@ -36,7 +36,6 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
         alignItems: 'center',
         textAlign: 'center',
         transition: 'transform 0.4s ease',
-        transform: revealed ? 'rotateX(0deg)' : 'rotateX(0deg)',
       }}>
         {!revealed ? (
           <>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Input } from '@telegram-apps/telegram-ui'
+import { Button } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import { api } from '../api'
 import { useApp } from '../contexts/AppContext'
@@ -11,6 +11,7 @@ import FlashCard from '../components/FlashCard'
 import DifficultyButtons from '../components/DifficultyButtons'
 import ExplainButton from '../components/ExplainButton'
 import MoveDeckModal from '../components/MoveDeckModal'
+import EditCardModal from '../components/EditCardModal'
 import { useTranslation } from '../i18n'
 import { getLanguageNames } from '../utils/languages'
 import TypeModeView from '../components/TypeModeView'
@@ -92,37 +93,6 @@ export default function PracticePage() {
 
   // Edit card modal state
   const [editingCard, setEditingCard] = useState<Flashcard | null>(null)
-  const [editForm, setEditForm] = useState({ target_text: '', example_source: '', example_target: '' })
-  const [editSaving, setEditSaving] = useState(false)
-  const [editError, setEditError] = useState('')
-
-  const openEdit = (card: Flashcard) => {
-    setEditForm({
-      target_text: card.target_text,
-      example_source: card.example_source || '',
-      example_target: card.example_target || '',
-    })
-    setEditError('')
-    setEditingCard(card)
-  }
-
-  const handleEditSave = async () => {
-    if (!editingCard) return
-    setEditSaving(true)
-    setEditError('')
-    try {
-      const updated = await api.updateCard(editingCard.id, editForm)
-      WebApp.HapticFeedback.notificationOccurred('success')
-      // Update the card in the current session
-      setCards((prev) => prev.map((c) => c.id === updated.id ? updated : c))
-      setEditingCard(null)
-    } catch (e: any) {
-      setEditError(e.message || 'Failed to save')
-      WebApp.HapticFeedback.notificationOccurred('error')
-    } finally {
-      setEditSaving(false)
-    }
-  }
 
   const loadDecks = async () => {
     setDecksLoading(true)
@@ -551,7 +521,7 @@ export default function PracticePage() {
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                   <ExplainButton key={currentCard.id} cardId={currentCard.id} />
                   <button
-                    onClick={() => openEdit(currentCard)}
+                    onClick={() => setEditingCard(currentCard)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -621,96 +591,14 @@ export default function PracticePage() {
 
       {/* Edit Card Modal */}
       {editingCard && (
-        <div
-          onClick={() => setEditingCard(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '16px',
+        <EditCardModal
+          card={editingCard}
+          onClose={() => setEditingCard(null)}
+          onSaved={(updated) => {
+            setCards((prev) => prev.map((c) => c.id === updated.id ? updated : c))
+            setEditingCard(null)
           }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: 'var(--tg-bg-color)',
-              borderRadius: '16px',
-              padding: '24px',
-              width: '100%',
-              maxWidth: '400px',
-            }}
-          >
-            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>{t('cards.editCard')}</h2>
-            <p style={{ fontSize: '16px', color: 'var(--tg-hint-color)', marginBottom: '20px' }}>
-              {editingCard.source_text}
-            </p>
-
-            {editError && (
-              <div style={{
-                padding: '8px 12px',
-                backgroundColor: '#ff3b3020',
-                borderRadius: '8px',
-                color: '#ff3b30',
-                fontSize: '13px',
-                marginBottom: '12px',
-              }}>
-                {editError}
-              </div>
-            )}
-
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
-                {t('cards.edit')}
-              </label>
-              <Input
-                value={editForm.target_text}
-                onChange={(e) => setEditForm({ ...editForm, target_text: e.target.value })}
-              />
-            </div>
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
-                {t('cards.example')}
-              </label>
-              <Input
-                value={editForm.example_source}
-                onChange={(e) => setEditForm({ ...editForm, example_source: e.target.value })}
-              />
-            </div>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--tg-hint-color)', display: 'block', marginBottom: '4px' }}>
-                {t('cards.example')}
-              </label>
-              <Input
-                value={editForm.example_target}
-                onChange={(e) => setEditForm({ ...editForm, example_target: e.target.value })}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <Button
-                size="l"
-                mode="outline"
-                stretched
-                onClick={() => setEditingCard(null)}
-                disabled={editSaving}
-              >
-                {t('cards.cancel')}
-              </Button>
-              <Button
-                size="l"
-                stretched
-                onClick={handleEditSave}
-                disabled={editSaving}
-              >
-                {editSaving ? t('cards.saving') : t('cards.save')}
-              </Button>
-            </div>
-          </div>
-        </div>
+        />
       )}
 
       {/* Move Card Modal */}
