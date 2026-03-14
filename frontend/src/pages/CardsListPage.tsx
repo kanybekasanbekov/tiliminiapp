@@ -94,7 +94,7 @@ export default function CardsListPage() {
   const loadCards = async (p: number, deckId?: number) => {
     setLoading(true)
     try {
-      const data = await api.getCards(p, 10, deckId, activeLanguagePair)
+      const data = await api.getCards(p, 100, deckId, activeLanguagePair)
       setCards(data.cards)
       setTotalPages(data.total_pages)
       setTotal(data.total)
@@ -110,7 +110,7 @@ export default function CardsListPage() {
     if (!query.trim()) return
     setSearchLoading(true)
     try {
-      const data = await api.searchCards(query.trim(), p, 10, activeLanguagePair)
+      const data = await api.searchCards(query.trim(), p, 100, activeLanguagePair)
       setSearchResults(data.cards)
       setSearchTotalPages(data.total_pages)
       setSearchTotal(data.total)
