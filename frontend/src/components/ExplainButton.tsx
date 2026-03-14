@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '../api'
+import { api, ApiError } from '../api'
 import { useTranslation } from '../i18n'
 
 interface ExplainButtonProps {
@@ -52,7 +52,7 @@ function renderMarkdown(text: string) {
 
 export default function ExplainButton({ cardId, translationData }: ExplainButtonProps) {
   const { t } = useTranslation()
-  const [state, setState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle')
+  const [state, setState] = useState<'idle' | 'loading' | 'loaded' | 'error' | 'limited'>('idle')
   const [explanation, setExplanation] = useState('')
   const [error, setError] = useState('')
   const [visible, setVisible] = useState(true)
@@ -79,12 +79,30 @@ export default function ExplainButton({ cardId, translationData }: ExplainButton
       setState('loaded')
       setVisible(true)
     } catch (e: any) {
-      setError(e.message || 'Failed to generate explanation')
-      setState('error')
+      if (e instanceof ApiError && e.status === 429) {
+        if (e.isDailyLimit) {
+          const now = new Date()
+          const utcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+          const hoursLeft = Math.max(1, Math.ceil((utcMidnight.getTime() - now.getTime()) / 3600000))
+          setError(t('limit.dailyLimit', { hours: String(hoursLeft) }))
+        } else if (e.retryAfter) {
+          if (e.retryAfter >= 60) {
+            setError(t('limit.rateLimitMinutes', { minutes: String(Math.ceil(e.retryAfter / 60)) }))
+          } else {
+            setError(t('limit.rateLimitSeconds', { seconds: String(e.retryAfter) }))
+          }
+        } else {
+          setError(t('limit.rateLimitShort'))
+        }
+        setState('limited')
+      } else {
+        setError(e.message || 'Failed to generate explanation')
+        setState('error')
+      }
     }
   }
 
-  const isIdle = state === 'idle' || state === 'error'
+  const isIdle = state === 'idle' || state === 'error' || state === 'limited'
   const isLoading = state === 'loading'
   const isLoadedVisible = state === 'loaded' && visible
   const isLoadedHidden = state === 'loaded' && !visible
@@ -166,14 +184,15 @@ export default function ExplainButton({ cardId, translationData }: ExplainButton
         <span style={{ position: 'relative' }}>{getButtonLabel()}</span>
       </button>
 
-      {state === 'error' && error && (
+      {(state === 'error' || state === 'limited') && error && (
         <div style={{
           marginTop: '8px',
           padding: '8px 12px',
-          backgroundColor: '#ff3b3020',
+          backgroundColor: state === 'limited' ? '#ff950020' : '#ff3b3020',
           borderRadius: '8px',
-          color: '#ff3b30',
+          color: state === 'limited' ? '#ff9500' : '#ff3b30',
           fontSize: '13px',
+          fontWeight: state === 'limited' ? 500 : undefined,
         }}>
           {error}
         </div>

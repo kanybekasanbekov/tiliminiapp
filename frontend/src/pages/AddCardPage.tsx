@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Section, Input, Button, Cell } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
-import { api } from '../api'
+import { api, ApiError } from '../api'
 import { useApp } from '../contexts/AppContext'
 import type { TranslationResult, Deck, ImageTranslationItem } from '../types'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -54,6 +54,7 @@ export default function AddCardPage() {
   // Shared state
   const [mode, setMode] = useState<Mode>('text')
   const [error, setError] = useState('')
+  const [limitWarning, setLimitWarning] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [decks, setDecks] = useState<Deck[]>([])
   const [selectedDeckId, setSelectedDeckId] = useState<number | undefined>(undefined)
@@ -120,11 +121,38 @@ export default function AddCardPage() {
     return () => clearTimeout(timer)
   }, [successMessage])
 
+  const MAX_WORD_LENGTH = 100
+  const wordTrimmed = word.trim()
+  const isOverLimit = wordTrimmed.length > MAX_WORD_LENGTH
+
+  const handleLimitError = (e: unknown): boolean => {
+    if (e instanceof ApiError && e.status === 429) {
+      if (e.isDailyLimit) {
+        const now = new Date()
+        const utcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+        const hoursLeft = Math.max(1, Math.ceil((utcMidnight.getTime() - now.getTime()) / 3600000))
+        setLimitWarning(t('limit.dailyLimit', { hours: String(hoursLeft) }))
+      } else if (e.retryAfter) {
+        if (e.retryAfter >= 60) {
+          setLimitWarning(t('limit.rateLimitMinutes', { minutes: String(Math.ceil(e.retryAfter / 60)) }))
+        } else {
+          setLimitWarning(t('limit.rateLimitSeconds', { seconds: String(e.retryAfter) }))
+        }
+      } else {
+        setLimitWarning(t('limit.rateLimitShort'))
+      }
+      WebApp.HapticFeedback.notificationOccurred('warning')
+      return true
+    }
+    return false
+  }
+
   // === Text mode handlers ===
   const handleTranslate = async () => {
-    if (!word.trim()) return
+    if (!wordTrimmed || isOverLimit) return
     setLoading(true)
     setError('')
+    setLimitWarning('')
     setTranslation(null)
     try {
       const result = await api.translateWord(word.trim(), activeLanguagePair)
@@ -132,8 +160,10 @@ export default function AddCardPage() {
       setEditData(result)
       WebApp.HapticFeedback.impactOccurred('light')
     } catch (e: any) {
-      setError(e.message || 'Translation failed')
-      WebApp.HapticFeedback.notificationOccurred('error')
+      if (!handleLimitError(e)) {
+        setError(e.message || 'Translation failed')
+        WebApp.HapticFeedback.notificationOccurred('error')
+      }
     } finally {
       setLoading(false)
     }
@@ -187,6 +217,7 @@ export default function AddCardPage() {
     if (!imageFile) return
     setImageLoading(true)
     setError('')
+    setLimitWarning('')
     setBatchTranslations([])
     try {
       const result = await api.translateImage(imageFile, activeLanguagePair)
@@ -203,8 +234,10 @@ export default function AddCardPage() {
       setSelectedIndices(selected)
       WebApp.HapticFeedback.impactOccurred('light')
     } catch (e: any) {
-      setError(e.message || 'Image translation failed')
-      WebApp.HapticFeedback.notificationOccurred('error')
+      if (!handleLimitError(e)) {
+        setError(e.message || 'Image translation failed')
+        WebApp.HapticFeedback.notificationOccurred('error')
+      }
     } finally {
       setImageLoading(false)
     }
@@ -411,6 +444,20 @@ export default function AddCardPage() {
         </div>
       )}
 
+      {limitWarning && (
+        <div style={{
+          margin: '0 16px 12px',
+          padding: '12px 16px',
+          backgroundColor: '#ff950020',
+          borderRadius: '12px',
+          color: '#ff9500',
+          fontSize: '14px',
+          fontWeight: 500,
+        }}>
+          {limitWarning}
+        </div>
+      )}
+
       {error && (
         <div style={{
           margin: '0 16px 12px',
@@ -436,13 +483,23 @@ export default function AddCardPage() {
                 onKeyDown={(e) => e.key === 'Enter' && handleTranslate()}
                 disabled={loading}
               />
+              {wordTrimmed.length > 0 && (
+                <div style={{
+                  textAlign: 'right',
+                  fontSize: '12px',
+                  marginTop: '4px',
+                  color: isOverLimit ? '#ff3b30' : 'var(--tg-hint-color)',
+                }}>
+                  {wordTrimmed.length}/{MAX_WORD_LENGTH}
+                </div>
+              )}
             </div>
             <div style={{ padding: '0 16px 16px' }}>
               <Button
                 size="l"
                 stretched
                 onClick={handleTranslate}
-                disabled={!word.trim() || loading}
+                disabled={!wordTrimmed || isOverLimit || loading}
               >
                 {loading ? t('add.translating') : t('add.translate')}
               </Button>

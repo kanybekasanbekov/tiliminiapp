@@ -8,6 +8,7 @@ from fastapi.responses import Response
 
 from backend.auth import ensure_user
 from backend.db import models
+from backend.rate_limit import rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ async def get_tts_audio(
     request: Request,
     text: str,
     lang: str = "ko",
-    user: dict[str, Any] = Depends(ensure_user),
+    user: dict[str, Any] = Depends(rate_limit("tts")),
 ):
     """Generate or retrieve cached TTS audio for text.
 

@@ -5,6 +5,7 @@ import json
 import logging
 import re
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 
 import anthropic
 import openai
@@ -16,6 +17,42 @@ logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
 RETRY_DELAY_BASE = 1.0
+
+
+class LRUCache:
+    """Simple in-memory LRU cache using OrderedDict."""
+
+    def __init__(self, max_size: int) -> None:
+        self._cache: OrderedDict[str, object] = OrderedDict()
+        self._max_size = max_size
+        self.hits = 0
+        self.misses = 0
+
+    def get(self, key: str) -> object | None:
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            self.hits += 1
+            return self._cache[key]
+        self.misses += 1
+        return None
+
+    def put(self, key: str, value: object) -> None:
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            self._cache[key] = value
+            return
+        if len(self._cache) >= self._max_size:
+            self._cache.popitem(last=False)
+        self._cache[key] = value
+
+    @property
+    def size(self) -> int:
+        return len(self._cache)
+
+
+# Module-level caches (initialized once at import time)
+_translation_cache = LRUCache(config.TRANSLATION_CACHE_SIZE)
+_explanation_cache = LRUCache(config.EXPLANATION_CACHE_SIZE)
 
 SUPPORTED_PAIRS: dict[str, dict] = {
     "ko-en": {
@@ -241,13 +278,13 @@ class LLMProvider(ABC):
     """Abstract base for LLM providers."""
 
     @abstractmethod
-    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict]:
-        """Translate a word and return structured data + usage info."""
+    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict, bool]:
+        """Translate a word. Returns (result, usage, was_cached)."""
         ...
 
     @abstractmethod
-    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict]:
-        """Generate a detailed explanation for a word. Returns (markdown text, usage info)."""
+    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict, bool]:
+        """Generate explanation. Returns (markdown, usage, was_cached)."""
         ...
 
     @abstractmethod
@@ -280,7 +317,7 @@ class AnthropicProvider(LLMProvider):
         usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
         return usage
 
-    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict]:
+    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict, bool]:
         system_prompt = build_translation_prompt(source_lang, target_lang)
 
         async def call():
@@ -290,11 +327,11 @@ class AnthropicProvider(LLMProvider):
             )
             text = self._extract_text(response)
             logger.debug("Anthropic raw response: %s", text)
-            return TranslationResult.model_validate(_extract_json(text)), self._usage(response)
+            return TranslationResult.model_validate(_extract_json(text)), self._usage(response), False
 
         return await _call_with_retry(call, self._RETRYABLE, "Anthropic translate")
 
-    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict]:
+    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict, bool]:
         prompt = build_explanation_prompt(word, translation, source_lang, target_lang)
 
         async def call():
@@ -304,7 +341,7 @@ class AnthropicProvider(LLMProvider):
             )
             text = self._extract_text(response)
             logger.debug("Anthropic explain response: %s", text)
-            return text.strip().strip("`").strip(), self._usage(response)
+            return text.strip().strip("`").strip(), self._usage(response), False
 
         return await _call_with_retry(call, self._RETRYABLE, "Anthropic explain")
 
@@ -313,7 +350,7 @@ class AnthropicProvider(LLMProvider):
 
         async def call():
             response = await self.client.messages.create(
-                model=self.model, max_tokens=8192, system=system_prompt,
+                model=self.model, max_tokens=4096, system=system_prompt,
                 messages=[{
                     "role": "user",
                     "content": [
@@ -349,7 +386,7 @@ class OpenAIProvider(LLMProvider):
         usage["estimated_cost_usd"] = estimate_cost(usage["model"], usage["input_tokens"], usage["output_tokens"])
         return usage
 
-    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict]:
+    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict, bool]:
         system_prompt = build_translation_prompt(source_lang, target_lang)
 
         async def call():
@@ -363,11 +400,11 @@ class OpenAIProvider(LLMProvider):
             )
             text = response.choices[0].message.content or "{}"
             logger.debug("OpenAI raw response: %s", text)
-            return TranslationResult.model_validate(_extract_json(text)), self._usage(response)
+            return TranslationResult.model_validate(_extract_json(text)), self._usage(response), False
 
         return await _call_with_retry(call, self._RETRYABLE, "OpenAI translate")
 
-    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict]:
+    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict, bool]:
         prompt = build_explanation_prompt(word, translation, source_lang, target_lang)
 
         async def call():
@@ -377,7 +414,7 @@ class OpenAIProvider(LLMProvider):
             )
             text = response.choices[0].message.content or ""
             logger.debug("OpenAI explain response: %s", text)
-            return text.strip().strip("`").strip(), self._usage(response)
+            return text.strip().strip("`").strip(), self._usage(response), False
 
         return await _call_with_retry(call, self._RETRYABLE, "OpenAI explain")
 
@@ -386,7 +423,7 @@ class OpenAIProvider(LLMProvider):
 
         async def call():
             response = await self.client.chat.completions.create(
-                model=self.model, max_tokens=8192,
+                model=self.model, max_tokens=4096,
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": system_prompt + '\n\nIMPORTANT: Wrap the array in a JSON object like: {"words": [...]}'},
@@ -416,12 +453,48 @@ class OpenAIProvider(LLMProvider):
         return await _call_with_retry(call, self._RETRYABLE, "OpenAI image translate")
 
 
+class CachedLLMProvider(LLMProvider):
+    """Wraps any LLMProvider with in-memory LRU caching for translate/explain."""
+
+    def __init__(self, inner: LLMProvider) -> None:
+        self._inner = inner
+
+    async def translate(self, word: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[TranslationResult, dict, bool]:
+        key = f"{word.strip().lower()}|{source_lang}|{target_lang}"
+        cached = _translation_cache.get(key)
+        if cached is not None:
+            logger.debug("Translation cache HIT: %s", key)
+            return cached, {}, True  # type: ignore[return-value]
+
+        result, usage, _ = await self._inner.translate(word, source_lang, target_lang)
+        _translation_cache.put(key, result)
+        logger.debug("Translation cache MISS: %s (cache size: %d)", key, _translation_cache.size)
+        return result, usage, False
+
+    async def explain_word(self, word: str, translation: str, source_lang: str, target_lang: str) -> tuple[str, dict, bool]:
+        key = f"{word.strip().lower()}|{translation.strip().lower()}|{source_lang}|{target_lang}"
+        cached = _explanation_cache.get(key)
+        if cached is not None:
+            logger.debug("Explanation cache HIT: %s", key)
+            return cached, {}, True  # type: ignore[return-value]
+
+        result, usage, _ = await self._inner.explain_word(word, translation, source_lang, target_lang)
+        _explanation_cache.put(key, result)
+        logger.debug("Explanation cache MISS: %s (cache size: %d)", key, _explanation_cache.size)
+        return result, usage, False
+
+    async def translate_image(self, image_base64: str, media_type: str, source_lang: str = "ko", target_lang: str = "en") -> tuple[list[TranslationResult], dict]:
+        # Image translations are not cached (unique images)
+        return await self._inner.translate_image(image_base64, media_type, source_lang, target_lang)
+
+
 def create_llm_provider() -> LLMProvider:
-    """Factory: reads LLM_PROVIDER from config, returns the appropriate provider."""
+    """Factory: reads LLM_PROVIDER from config, returns a cached provider."""
     provider = config.LLM_PROVIDER.lower()
     if provider == "anthropic":
-        return AnthropicProvider()
+        inner = AnthropicProvider()
     elif provider == "openai":
-        return OpenAIProvider()
+        inner = OpenAIProvider()
     else:
         raise ValueError(f"Unknown LLM provider: {provider!r}. Use 'anthropic' or 'openai'.")
+    return CachedLLMProvider(inner)

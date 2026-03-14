@@ -5,11 +5,13 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from backend import config
 from backend.auth import ensure_user
 from backend.config import SUPPORTED_LANGUAGE_PAIRS
 from backend.db import models
+from backend.rate_limit import rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +22,13 @@ MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
 class TranslateRequest(BaseModel):
-    word: str
+    word: str = Field(..., min_length=1, max_length=config.MAX_TRANSLATE_INPUT_LENGTH)
     language_pair: str = "ko-en"
 
 
 class ExplainRequest(BaseModel):
-    source_text: str
-    target_text: str
+    source_text: str = Field(..., min_length=1, max_length=config.MAX_EXPLAIN_SOURCE_LENGTH)
+    target_text: str = Field(..., min_length=1, max_length=config.MAX_EXPLAIN_TARGET_LENGTH)
     language_pair: str = "ko-en"
 
 
@@ -51,26 +53,42 @@ class BatchCreateRequest(BaseModel):
     deck_id: int | None = None
 
 
+async def _check_daily_cost(db, user_id: int) -> None:
+    """Raise 429 if user has exceeded daily cost ceiling. Admin is exempt."""
+    if user_id == config.ADMIN_USER_ID:
+        return
+    daily_cost = await models.get_user_daily_cost(db, user_id)
+    if daily_cost >= config.MAX_DAILY_COST_PER_USER:
+        logger.warning("Daily cost ceiling hit: user=%s cost=$%.4f", user_id, daily_cost)
+        raise HTTPException(
+            status_code=429,
+            detail="Daily usage limit reached. Please try again tomorrow.",
+        )
+
+
 @router.post("/translate")
 async def translate_word(
     body: TranslateRequest,
     request: Request,
-    user: dict[str, Any] = Depends(ensure_user),
+    user: dict[str, Any] = Depends(rate_limit("translate")),
 ):
     """Translate a word using AI."""
+    db = request.app.state.db
+    await _check_daily_cost(db, user["id"])
+
     llm = request.app.state.llm
     try:
         source_lang, target_lang = body.language_pair.split("-", 1)
-        result, usage = await llm.translate(body.word, source_lang, target_lang)
-        db = request.app.state.db
-        try:
-            await models.log_api_usage(
-                db, user["id"], "translate", usage["model"],
-                usage["input_tokens"], usage["output_tokens"],
-                usage["estimated_cost_usd"], body.language_pair,
-            )
-        except Exception:
-            logger.exception("Failed to log API usage for translate")
+        result, usage, was_cached = await llm.translate(body.word.strip(), source_lang, target_lang)
+        if not was_cached:
+            try:
+                await models.log_api_usage(
+                    db, user["id"], "translate", usage["model"],
+                    usage["input_tokens"], usage["output_tokens"],
+                    usage["estimated_cost_usd"], body.language_pair,
+                )
+            except Exception:
+                logger.exception("Failed to log API usage for translate")
         return result.model_dump()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -84,7 +102,7 @@ async def translate_image(
     request: Request,
     image: UploadFile = File(...),
     language_pair: str = Form("ko-en"),
-    user: dict[str, Any] = Depends(ensure_user),
+    user: dict[str, Any] = Depends(rate_limit("translate_image")),
 ):
     """Extract and translate all words from an uploaded image."""
     # Validate file type
@@ -100,13 +118,15 @@ async def translate_image(
     if language_pair not in SUPPORTED_LANGUAGE_PAIRS:
         raise HTTPException(status_code=400, detail=f"Unsupported language pair: {language_pair}")
 
+    db = request.app.state.db
+    await _check_daily_cost(db, user["id"])
+
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
 
     llm = request.app.state.llm
     try:
         source_lang, target_lang = language_pair.split("-", 1)
         results, usage = await llm.translate_image(image_base64, content_type, source_lang, target_lang)
-        db = request.app.state.db
         try:
             await models.log_api_usage(
                 db, user["id"], "translate_image", usage["model"],
@@ -268,24 +288,32 @@ async def search_cards(
 async def explain_word(
     body: ExplainRequest,
     request: Request,
-    user: dict[str, Any] = Depends(ensure_user),
+    user: dict[str, Any] = Depends(rate_limit("explain")),
 ):
     """Generate explanation for a word without requiring a saved card."""
+    if body.language_pair not in SUPPORTED_LANGUAGE_PAIRS:
+        raise HTTPException(status_code=400, detail=f"Unsupported language pair: {body.language_pair}")
+
+    db = request.app.state.db
+    await _check_daily_cost(db, user["id"])
+
     llm = request.app.state.llm
     try:
         source_lang, target_lang = body.language_pair.split("-", 1)
-        explanation_text, usage = await llm.explain_word(
-            body.source_text, body.target_text, source_lang, target_lang
+        explanation_text, usage, was_cached = await llm.explain_word(
+            body.source_text.strip(), body.target_text.strip(), source_lang, target_lang
         )
-        db = request.app.state.db
-        try:
-            await models.log_api_usage(
-                db, user["id"], "explain", usage["model"],
-                usage["input_tokens"], usage["output_tokens"],
-                usage["estimated_cost_usd"], body.language_pair,
-            )
-        except Exception:
-            logger.exception("Failed to log API usage for explain")
+        if not was_cached:
+            try:
+                await models.log_api_usage(
+                    db, user["id"], "explain", usage["model"],
+                    usage["input_tokens"], usage["output_tokens"],
+                    usage["estimated_cost_usd"], body.language_pair,
+                )
+            except Exception:
+                logger.exception("Failed to log API usage for explain")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         logger.exception("Explanation failed")
         raise HTTPException(status_code=500, detail="Explanation failed")
@@ -341,7 +369,7 @@ async def get_explanation(
 async def generate_explanation(
     card_id: int,
     request: Request,
-    user: dict[str, Any] = Depends(ensure_user),
+    user: dict[str, Any] = Depends(rate_limit("explain")),
 ):
     """Generate explanation via LLM, cache it, return it."""
     db = request.app.state.db
@@ -352,6 +380,8 @@ async def generate_explanation(
     if cached:
         return {"explanation": cached["explanation"], "card_id": card_id}
 
+    await _check_daily_cost(db, user_id)
+
     # Fetch card and verify ownership
     card = await models.get_flashcard_by_id(db, card_id, user_id)
     if not card:
@@ -361,17 +391,18 @@ async def generate_explanation(
     llm = request.app.state.llm
     try:
         source_lang, target_lang = card["language_pair"].split("-", 1)
-        explanation_text, usage = await llm.explain_word(
+        explanation_text, usage, was_cached = await llm.explain_word(
             card["source_text"], card["target_text"], source_lang, target_lang
         )
-        try:
-            await models.log_api_usage(
-                db, user_id, "explain", usage["model"],
-                usage["input_tokens"], usage["output_tokens"],
-                usage["estimated_cost_usd"], card["language_pair"],
-            )
-        except Exception:
-            logger.exception("Failed to log API usage for explain")
+        if not was_cached:
+            try:
+                await models.log_api_usage(
+                    db, user_id, "explain", usage["model"],
+                    usage["input_tokens"], usage["output_tokens"],
+                    usage["estimated_cost_usd"], card["language_pair"],
+                )
+            except Exception:
+                logger.exception("Failed to log API usage for explain")
     except Exception:
         logger.exception("Explanation generation failed")
         raise HTTPException(status_code=500, detail="Explanation failed")

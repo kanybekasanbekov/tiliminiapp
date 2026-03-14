@@ -688,6 +688,20 @@ async def log_api_usage(
     await conn.commit()
 
 
+async def get_user_daily_cost(conn: aiosqlite.Connection, user_id: int) -> float:
+    """Get total estimated API cost for a user today (UTC)."""
+    cursor = await conn.execute(
+        """
+        SELECT COALESCE(SUM(estimated_cost_usd), 0.0) as total
+        FROM api_usage
+        WHERE user_id = ? AND date(created_at) = date('now')
+        """,
+        (user_id,),
+    )
+    row = await cursor.fetchone()
+    return float(row["total"]) if row else 0.0
+
+
 async def get_admin_global_stats(conn: aiosqlite.Connection) -> dict:
     """Get global admin statistics across all users."""
     # Total users

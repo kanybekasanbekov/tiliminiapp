@@ -20,6 +20,26 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
+export class ApiError extends Error {
+  status: number
+  retryAfter: number | null
+
+  constructor(status: number, message: string, retryAfter: number | null = null) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.retryAfter = retryAfter
+  }
+
+  get isRateLimit(): boolean {
+    return this.status === 429 && !this.isDailyLimit
+  }
+
+  get isDailyLimit(): boolean {
+    return this.status === 429 && this.message.toLowerCase().includes('daily')
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -39,7 +59,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Request failed' }))
-    throw new Error(error.detail || `HTTP ${res.status}`)
+    const message = error.detail || `HTTP ${res.status}`
+    if (res.status === 429) {
+      const retryAfter = res.headers.get('Retry-After')
+      throw new ApiError(429, message, retryAfter ? parseInt(retryAfter, 10) : null)
+    }
+    throw new ApiError(res.status, message)
   }
 
   return res.json()
@@ -47,11 +72,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 // Cards API
 export const api = {
-  translateWord: (word: string, languagePair: string = 'ko-en') =>
-    request<TranslationResult>('/api/cards/translate', {
+  translateWord: (word: string, languagePair: string = 'ko-en') => {
+    if (word.trim().length > 100) throw new Error('Text too long (max 100 characters)')
+    return request<TranslationResult>('/api/cards/translate', {
       method: 'POST',
-      body: JSON.stringify({ word, language_pair: languagePair }),
-    }),
+      body: JSON.stringify({ word: word.trim(), language_pair: languagePair }),
+    })
+  },
 
   createCard: (card: Omit<TranslationResult, never> & { deck_id?: number; language_pair?: string }) =>
     request<Flashcard>('/api/cards', {
@@ -92,11 +119,14 @@ export const api = {
       method: 'POST',
     }),
 
-  explainWord: (source_text: string, target_text: string, language_pair: string) =>
-    request<{ explanation: string }>('/api/cards/explain', {
+  explainWord: (source_text: string, target_text: string, language_pair: string) => {
+    if (source_text.trim().length > 100) throw new Error('Source text too long (max 100 characters)')
+    if (target_text.trim().length > 200) throw new Error('Target text too long (max 200 characters)')
+    return request<{ explanation: string }>('/api/cards/explain', {
       method: 'POST',
-      body: JSON.stringify({ source_text, target_text, language_pair }),
-    }),
+      body: JSON.stringify({ source_text: source_text.trim(), target_text: target_text.trim(), language_pair }),
+    })
+  },
 
   translateImage: async (image: File, languagePair: string = 'ko-en'): Promise<ImageTranslationResponse> => {
     const formData = new FormData()

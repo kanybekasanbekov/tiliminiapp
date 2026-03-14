@@ -216,6 +216,12 @@ export const translations: Record<string, TranslationMap> = {
     'explain.aiExplain': 'AI Explain',
     'explain.aiExplanation': 'AI Explanation',
 
+    // Limits
+    'limit.rateLimitMinutes': 'Too many requests. Please wait {{minutes}} min.',
+    'limit.rateLimitSeconds': 'Too many requests. Please wait {{seconds}} sec.',
+    'limit.rateLimitShort': 'Too many requests. Please wait a moment.',
+    'limit.dailyLimit': 'Daily limit reached. Resets in {{hours}} h.',
+
     // Language names
     'lang.ko': 'Korean',
     'lang.en': 'English',
@@ -439,6 +445,12 @@ export const translations: Record<string, TranslationMap> = {
     'explain.show': 'Показать объяснение',
     'explain.aiExplain': 'ИИ объяснение',
     'explain.aiExplanation': 'ИИ объяснение',
+
+    // Limits
+    'limit.rateLimitMinutes': 'Слишком много запросов. Подождите {{minutes}} мин.',
+    'limit.rateLimitSeconds': 'Слишком много запросов. Подождите {{seconds}} сек.',
+    'limit.rateLimitShort': 'Слишком много запросов. Подождите немного.',
+    'limit.dailyLimit': 'Дневной лимит исчерпан. Сброс через {{hours}} ч.',
 
     // Language names
     'lang.ko': 'Корейский',

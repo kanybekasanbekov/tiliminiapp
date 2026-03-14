@@ -107,6 +107,7 @@ CREATE INDEX IF NOT EXISTS idx_explanation_card ON explanations(card_id);
 CREATE INDEX IF NOT EXISTS idx_user_lang_review ON flashcards(user_id, language_pair, next_review);
 CREATE INDEX IF NOT EXISTS idx_api_usage_user ON api_usage(user_id);
 CREATE INDEX IF NOT EXISTS idx_api_usage_created ON api_usage(created_at);
+CREATE INDEX IF NOT EXISTS idx_api_usage_user_date ON api_usage(user_id, created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tts_hash ON tts_cache(text_hash);
 CREATE INDEX IF NOT EXISTS idx_review_history_user ON review_history(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_review_history_card ON review_history(card_id);

@@ -40,3 +40,21 @@ SUPPORTED_LANGUAGE_PAIRS = {"ko-en", "en-ko", "ko-ru", "en-ru"}
 # TTS Configuration
 TTS_MODEL = os.getenv("TTS_MODEL", "gpt-4o-mini-tts")
 TTS_VOICE = os.getenv("TTS_VOICE", "coral")
+
+# Cache sizes
+TRANSLATION_CACHE_SIZE = int(os.getenv("TRANSLATION_CACHE_SIZE", "5000"))
+EXPLANATION_CACHE_SIZE = int(os.getenv("EXPLANATION_CACHE_SIZE", "2000"))
+
+# Rate limiting (requests per hour per user)
+RATE_LIMIT_TRANSLATE = int(os.getenv("RATE_LIMIT_TRANSLATE", "60"))
+RATE_LIMIT_EXPLAIN = int(os.getenv("RATE_LIMIT_EXPLAIN", "30"))
+RATE_LIMIT_IMAGE = int(os.getenv("RATE_LIMIT_IMAGE", "10"))
+RATE_LIMIT_TTS = int(os.getenv("RATE_LIMIT_TTS", "200"))
+
+# Daily cost ceiling per user (USD). Admin is exempt.
+MAX_DAILY_COST_PER_USER = float(os.getenv("MAX_DAILY_COST_PER_USER", "0.10"))
+
+# Input length limits
+MAX_TRANSLATE_INPUT_LENGTH = int(os.getenv("MAX_TRANSLATE_INPUT_LENGTH", "100"))
+MAX_EXPLAIN_SOURCE_LENGTH = int(os.getenv("MAX_EXPLAIN_SOURCE_LENGTH", "100"))
+MAX_EXPLAIN_TARGET_LENGTH = int(os.getenv("MAX_EXPLAIN_TARGET_LENGTH", "200"))
