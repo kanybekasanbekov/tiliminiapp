@@ -114,7 +114,7 @@ export default function QuizModeView({ card, showSide, onResult, nextCardId }: Q
       cursor: selected ? 'default' : 'pointer',
       transition: 'all 0.2s',
       fontFamily: 'inherit',
-      textAlign: 'left',
+      textAlign: 'center',
       lineHeight: 1.4,
     }
 

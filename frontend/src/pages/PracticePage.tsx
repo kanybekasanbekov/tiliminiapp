@@ -12,6 +12,7 @@ import DifficultyButtons from '../components/DifficultyButtons'
 import ExplainButton from '../components/ExplainButton'
 import MoveDeckModal from '../components/MoveDeckModal'
 import { useTranslation } from '../i18n'
+import { getLanguageNames } from '../utils/languages'
 import TypeModeView from '../components/TypeModeView'
 import QuizModeView from '../components/QuizModeView'
 
@@ -65,7 +66,8 @@ function clearSession() {
 export default function PracticePage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const { setDueCount, activeLanguagePair, languagePairVersion } = useApp()
+  const { setDueCount, activeLanguagePair, languagePairVersion, appLanguage } = useApp()
+  const lang = getLanguageNames(activeLanguagePair, appLanguage)
   const [cards, setCards] = useState<Flashcard[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showAnswer, setShowAnswer] = useState(false)
@@ -442,8 +444,8 @@ export default function PracticePage() {
         {/* Practice mode selector */}
         <div style={{ display: 'flex', marginBottom: '10px', borderRadius: '8px', overflow: 'hidden' }}>
           {([
-            { mode: 'source-to-target' as PracticeMode, label: t('practice.sourceToTarget') },
-            { mode: 'target-to-source' as PracticeMode, label: t('practice.targetToSource') },
+            { mode: 'source-to-target' as PracticeMode, label: `${lang.source}\u2192${lang.target}` },
+            { mode: 'target-to-source' as PracticeMode, label: `${lang.target}\u2192${lang.source}` },
             { mode: 'random' as PracticeMode, label: t('practice.random') },
           ]).map(({ mode, label }, i) => {
             const isTypeLocked = studyMode === 'type'
