@@ -63,10 +63,12 @@ export default function FlashCard({ card, showSide, revealed }: FlashCardProps) 
               }}>
                 {question}
               </span>
-              <SpeakerButton
-                text={question}
-                lang={showSide === 'source' ? card.language_pair.split('-')[0] : card.language_pair.split('-')[1]}
-              />
+              {showSide === 'source' && (
+                <SpeakerButton
+                  text={question}
+                  lang={card.language_pair.split('-')[0]}
+                />
+              )}
             </div>
             <span style={{
               fontSize: '14px',

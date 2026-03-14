@@ -3,7 +3,6 @@ import { Button } from '@telegram-apps/telegram-ui'
 import WebApp from '@twa-dev/sdk'
 import type { Flashcard } from '../types'
 import FlashCard from './FlashCard'
-import SpeakerButton from './SpeakerButton'
 import { useTranslation } from '../i18n'
 
 interface TypeModeViewProps {
